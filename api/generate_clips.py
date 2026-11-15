@@ -111,21 +111,9 @@ def probe_codecs(path):
     return vcodec, acodec
 
 
-def extract_clip(video_path, start_time, end_time, output_path, keep_audio=True, fast_copy=True, quiet=False):
-    """
-    Extract a clip from video using ffmpeg.
-    
-    Args:
-        video_path: Source video file
-        start_time: Start time in seconds
-        end_time: End time in seconds
-        output_path: Output clip path
-        keep_audio: Include audio in clip
-        fast_copy: Copy H.264 or AV1 when audio is AAC or missing.
-                   Other codecs are re-encoded to H.264.
-    """
+def _ffmpeg_command(video_path, start_time, end_time, output_path, keep_audio=True, fast_copy=True):
+    """Build the cut command. The finished mp4 starts at this play, not at the previous keyframe."""
     duration = end_time - start_time
-    
     output_ext = os.path.splitext(output_path)[1].lower()
     
     # Copy H.264 or AV1 when audio is already AAC or missing. The stored games are
@@ -161,13 +149,32 @@ def extract_clip(video_path, start_time, end_time, output_path, keep_audio=True,
     if not keep_audio:
         cmd.extend(['-an'])  # Remove audio
     
-    # Add faststart flag for web compatibility (only for mp4/mov)
+    # +faststart moves the index to the front after the cut. The browser can then
+    # start at the play. Sending fragments earlier starts at the previous keyframe,
+    # which is several seconds before this play.
     if output_ext in ('.mp4', '.mov'):
         cmd.extend(['-movflags', '+faststart'])
-    
     cmd.extend([output_path, '-y'])
-    
-    # Run ffmpeg
+    return cmd
+
+
+def extract_clip(video_path, start_time, end_time, output_path, keep_audio=True, fast_copy=True, quiet=False):
+    """
+    Extract a clip from video using ffmpeg.
+
+    Args:
+        video_path: Source video file
+        start_time: Start time in seconds
+        end_time: End time in seconds
+        output_path: Output clip path
+        keep_audio: Include audio in clip
+        fast_copy: Copy H.264 or AV1 when audio is AAC or missing.
+                   Other codecs are re-encoded to H.264.
+    """
+    cmd = _ffmpeg_command(
+        video_path, start_time, end_time, output_path,
+        keep_audio=keep_audio, fast_copy=fast_copy,
+    )
     try:
         subprocess.run(cmd, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, timeout=CUT_TIMEOUT_S)
         return True

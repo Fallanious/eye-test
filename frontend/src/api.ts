@@ -7,15 +7,6 @@ async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   return data;
 }
 
-async function fetchBlob(url: string, init?: RequestInit): Promise<Blob> {
-  const res = await fetch(`${BASE}${url}`, init);
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Request failed (${res.status})`);
-  }
-  return res.blob();
-}
-
 export async function fetchPlayerLibrary(page?: { cursor?: number | null; team?: string; q?: string }): Promise<PlayerLibrary> {
   const params = new URLSearchParams();
   if (page?.cursor) params.set('cursor', String(page.cursor));
@@ -33,7 +24,7 @@ export async function fetchPlayerClips(playerId: number, page?: { cursor?: numbe
   return fetchJSON(`/api/players/${playerId}/clips${query ? `?${query}` : ''}`);
 }
 
-export async function fetchPlayerClip(playerId: number, clipId: number): Promise<Blob> {
-  return fetchBlob(`/api/players/${playerId}/clips/${clipId}`);
+export function playerClipUrl(playerId: number, clipId: number): string {
+  return `${BASE}/api/players/${playerId}/clips/${clipId}`;
 }
 

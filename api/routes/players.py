@@ -1,7 +1,7 @@
 """Players who have clips, and one cut of a clip from the S3 game."""
 
-import os
 import math
+import os
 import re
 import tempfile
 from datetime import timedelta

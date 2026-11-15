@@ -105,7 +105,7 @@ export default function PlayerBrowser() {
           <div className="pb-session">
             <section className="pb-preview" aria-label="Film preview">
               <div className="pb-stage" aria-busy={film.cutting}>
-                {film.url ? <video className="main-player pb-film" controls playsInline preload="auto" src={film.url} /> :
+                {film.url ? <video key={film.url} className="main-player pb-film" controls autoPlay playsInline preload="auto" src={film.url} onLoadedData={film.started} onError={film.failed} /> :
                   <div className={`pb-placeholder ${film.cutting ? 'pb-shimmer' : ''}`} role="status">
                     {film.cutting ? 'Loading this play…' : film.error ? 'Preview unavailable' : 'Select a play to watch'}
                   </div>}

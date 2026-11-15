@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { fetchPlayerClip } from '../api';
+import { useRef, useState } from 'react';
+import { playerClipUrl } from '../api';
 import type { PlayerClip } from '../types';
 
 export function usePlayerClip() {
@@ -10,18 +10,13 @@ export function usePlayerClip() {
   const urlRef = useRef('');
   const requestId = useRef(0);
 
-  function release() {
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-    urlRef.current = '';
-    setUrl('');
-  }
-
   function clear() {
     requestId.current += 1;
     setActive(null);
     setCutting(false);
     setError('');
-    release();
+    urlRef.current = '';
+    setUrl('');
   }
 
   function play(playerId: number, clip: PlayerClip) {
@@ -29,30 +24,25 @@ export function usePlayerClip() {
       setActive(clip);
       return;
     }
-    const token = ++requestId.current;
+    requestId.current += 1;
     setError('');
     setCutting(true);
     setActive(clip);
-    release();
-    void fetchPlayerClip(playerId, clip.id)
-      .then(blob => {
-        if (requestId.current !== token) return;
-        const next = URL.createObjectURL(blob);
-        urlRef.current = next;
-        setUrl(next);
-      })
-      .catch(err => {
-        if (requestId.current !== token) return;
-        setError(err instanceof Error ? err.message : 'Could not cut this clip.');
-      })
-      .finally(() => {
-        if (requestId.current === token) setCutting(false);
-      });
+    const next = playerClipUrl(playerId, clip.id);
+    urlRef.current = next;
+    setUrl(next);
   }
 
-  useEffect(() => () => {
-    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-  }, []);
+  function started() {
+    setCutting(false);
+  }
 
-  return { active, url, cutting, error, play, clear };
+  function failed() {
+    setCutting(false);
+    setError('Could not cut this clip.');
+    urlRef.current = '';
+    setUrl('');
+  }
+
+  return { active, url, cutting, error, play, clear, started, failed };
 }

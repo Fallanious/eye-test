@@ -52,6 +52,7 @@ def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch):
     with app.test_request_context('/api/players/7/clips/9'):
         response = players.serve_player_clip(7, 9)
         response.direct_passthrough = False
+        assert response.mimetype == 'video/mp4'
         assert response.get_data() == b'cut-video'
         response.close()
     assert not paths[0].exists()
