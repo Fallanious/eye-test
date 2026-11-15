@@ -298,7 +298,7 @@ button.pb-card:hover .pb-info {
   background: transparent;
   padding: 0;
   margin-bottom: 22px;
-  max-width: 460px;
+  max-width: 520px;
 }
 
 .pb-copy {
@@ -306,24 +306,38 @@ button.pb-card:hover .pb-info {
   min-width: 0;
 }
 
-.pb-selected .pb-abbr {
-  font-size: 12px;
-  margin-bottom: 4px;
-}
-
-.pb-selected .pb-info strong {
-  font-size: 23px;
-  padding-right: 0;
+.pb-selected .pb-info {
+  min-height: 168px;
+  border: 0;
+  border-bottom: 1px solid #dedfe5;
+  border-radius: 0;
+  padding: 16px 8px;
+  background: color-mix(in srgb, var(--player-color) 5%, #fafafa);
+  gap: 16px;
 }
 
 .pb-selected .pb-portrait {
-  height: 68px;
-  width: 64px;
-  flex-basis: 64px;
+  width: 112px;
+  height: 136px;
+  flex-basis: 112px;
+  border-radius: 10px;
+  background: #eef0f3;
 }
 
-.pb-selected .pb-bottom {
-  margin-top: 3px;
+.pb-selected .pb-initials {
+  color: var(--player-color);
+}
+
+.pb-selected .pb-abbr {
+  float: right;
+  margin: 3px 0 0 12px;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+}
+
+.pb-selected .pb-info strong {
+  font-size: 22px;
+  padding-right: 0;
 }
 
 .pb-session {
