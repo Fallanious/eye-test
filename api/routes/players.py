@@ -174,7 +174,7 @@ def _player_payload(row):
 
 @bp.route("/api/players")
 def list_players_with_clips():
-    """One page of players who have clips. The cursor is the last player id already shown."""
+    """One page of players who have clips. The cursor is the last player id shown."""
     try:
         cursor, team, query = player_page_request(request.args)
     except ValueError as exc:
