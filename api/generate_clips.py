@@ -77,6 +77,15 @@ def combine_clips(clip_paths, output_path):
         return False
 
 
+# A header read is a few range requests. A cut that is still running after this
+# is decoding far more than the clip window.
+PROBE_TIMEOUT_S = 10
+CUT_TIMEOUT_S = 30
+# H.264 and AV1 play from an mp4. Re-encoding AV1 is minutes on a small CPU.
+COPYABLE_VIDEO = {'h264', 'av1'}
+COPYABLE_AUDIO = {None, 'aac'}
+
+
 def probe_codecs(path):
     """Return (vcodec, acodec) for the first video and audio streams via ffprobe."""
     cmd = [
@@ -87,7 +96,8 @@ def probe_codecs(path):
         path,
     ]
     result = subprocess.run(
-        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=45,
+        cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        timeout=PROBE_TIMEOUT_S,
     )
     data = json.loads(result.stdout or '{}')
     vcodec = acodec = None
@@ -111,40 +121,42 @@ def extract_clip(video_path, start_time, end_time, output_path, keep_audio=True,
         end_time: End time in seconds
         output_path: Output clip path
         keep_audio: Include audio in clip
-        fast_copy: Use codec copy for faster extraction (no re-encoding)
-                   Note: mp4/mov clip output is re-encoded unless the source is already H.264+AAC
+        fast_copy: Copy H.264 or AV1 when audio is AAC or missing.
+                   Other codecs are re-encoded to H.264.
     """
     duration = end_time - start_time
     
     output_ext = os.path.splitext(output_path)[1].lower()
     
-    # mkv/webm/mov from bv*+ba/b may contain VP9/AV1+Opus. Using -c copy into mp4 can result in
-    # codecs that play poorly in Safari. Re-encode mp4/mov clips unless probe_codecs reports H.264+AAC.
+    # Copy H.264 or AV1 when audio is already AAC or missing. The stored games are
+    # AV1 in MKV, and re-encoding one clip on a small CPU takes minutes.
+    # VP9, Opus, and an unreadable header still become H.264.
     force_reencode = not fast_copy
     if fast_copy and output_ext in ('.mp4', '.mov'):
         try:
             vcodec, acodec = probe_codecs(video_path)
-            force_reencode = vcodec != 'h264' or acodec != 'aac'
+            force_reencode = vcodec not in COPYABLE_VIDEO or acodec not in COPYABLE_AUDIO
         except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError, ValueError):
             force_reencode = True
 
     # -ss and -t before -i seek and then read only this window.
-    # A remote game otherwise has to be copied in full before the cut.
+    # -seekable 1 keeps a remote game on range requests; without it ffmpeg
+    # can read from byte 0 through the start time.
     cmd = ['ffmpeg']
     if str(video_path).startswith('http'):
         cmd.extend(['-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5'])
-    cmd.extend([
-        '-ss', str(start_time),
-        '-t', str(duration),
-        '-i', video_path,
-    ])
+    cmd.extend(['-ss', str(start_time), '-t', str(duration)])
+    if str(video_path).startswith('http'):
+        cmd.append('-seekable')
+        cmd.append('1')
+    cmd.extend(['-i', video_path])
     
     if fast_copy and not force_reencode:
         # Fast: copy codecs without re-encoding
         cmd.extend(['-c', 'copy'])
     else:
-        # Re-encode for compatibility or quality
-        cmd.extend(['-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-c:a', 'aac'])
+        # Fallback for a codec the browser cannot play from the copy.
+        cmd.extend(['-c:v', 'libx264', '-preset', 'ultrafast', '-crf', '18', '-c:a', 'aac'])
     
     if not keep_audio:
         cmd.extend(['-an'])  # Remove audio
@@ -157,9 +169,12 @@ def extract_clip(video_path, start_time, end_time, output_path, keep_audio=True,
     
     # Run ffmpeg
     try:
-        subprocess.run(cmd, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, timeout=180)
+        subprocess.run(cmd, check=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, timeout=CUT_TIMEOUT_S)
         return True
-    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+    except subprocess.TimeoutExpired:
+        print("    Error: ffmpeg timed out cutting this clip")
+        return False
+    except subprocess.CalledProcessError as e:
         if quiet or str(video_path).startswith('http'):
             print("    Error: ffmpeg could not cut this clip")
             return False

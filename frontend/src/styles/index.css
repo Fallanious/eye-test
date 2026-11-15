@@ -573,13 +573,14 @@ button.pb-card:hover .pb-info {
 }
 
 .pb-shimmer,
-.pb-skeleton {
+.pb-skeleton-card,
+.pb-skeleton-row {
   position: relative;
   overflow: hidden;
 }
 
 .pb-skeleton {
-  background: #e4e4e8;
+  background: #e2e3e8;
 }
 
 .pb-skeleton-line {
@@ -595,27 +596,65 @@ button.pb-card:hover .pb-info {
 }
 
 .pb-shimmer::after,
-.pb-skeleton::after {
+.pb-skeleton-card::after,
+.pb-skeleton-row::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, transparent 30%, #ffffff20 50%, transparent 70%);
+  pointer-events: none;
   transform: translateX(-100%);
-  animation: pb-shimmer 2.4s infinite;
+  animation: pb-shimmer 2.2s ease-in-out infinite;
+  animation-delay: var(--shimmer-delay, 0s);
+}
+
+.pb-skeleton-card::after,
+.pb-skeleton-row::after {
+  background: linear-gradient(
+    105deg,
+    transparent 28%,
+    rgba(255, 255, 255, .28) 44%,
+    rgba(255, 255, 255, .95) 50%,
+    rgba(255, 255, 255, .28) 56%,
+    transparent 72%
+  );
+}
+
+.pb-shimmer::after {
+  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, .2) 50%, transparent 68%);
 }
 
 .pb-skeleton-card {
   pointer-events: none;
-  border: 1px solid #e2e3e7;
-  padding: 12px;
-  background: #fff;
 }
 
-.pb-skeleton-card .pb-info {
-  display: block;
-  border: 0;
-  padding: 0;
-  background: transparent;
+.pb-skeleton-card .pb-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.pb-skeleton-card .pb-skeleton-line:nth-child(1) {
+  width: 34px;
+  height: 10px;
+}
+
+.pb-skeleton-card .pb-skeleton-line:nth-child(2) {
+  width: 76%;
+  height: 16px;
+}
+
+.pb-skeleton-card .pb-skeleton-line:nth-child(3) {
+  width: 48%;
+  height: 10px;
+}
+
+.pb-skeleton-card:nth-child(3n + 2) .pb-skeleton-line:nth-child(2) {
+  width: 62%;
+}
+
+.pb-skeleton-card:nth-child(3n) .pb-skeleton-line:nth-child(2) {
+  width: 86%;
 }
 
 @keyframes pb-shimmer {
@@ -743,7 +782,8 @@ button.pb-card:hover .pb-info {
 @media(prefers-reduced-motion:reduce) {
 
   .pb-shimmer::after,
-  .pb-skeleton::after {
+  .pb-skeleton-card::after,
+  .pb-skeleton-row::after {
     animation: none;
   }
 
@@ -823,16 +863,8 @@ button.pb-card:hover .pb-info {
   opacity: 1;
 }
 
-.pb-grid .pb-skeleton-card {
-  min-height: 168px;
-  border: 0;
-  border-bottom: 1px solid #dedfe5;
-  background: transparent;
-}
-
-.pb-grid .pb-skeleton-card .pb-info {
-  min-height: 0;
-  border: 0;
+.pb-grid .pb-skeleton-card .pb-portrait {
+  background: #e2e3e8;
 }
 
 @media (max-width: 900px) {

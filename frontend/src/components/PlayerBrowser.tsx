@@ -17,6 +17,21 @@ function countLabel(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
+function PlayerSkeleton({ index }: { index: number }) {
+  return (
+    <div className="pb-card pb-skeleton-card" style={{ '--shimmer-delay': `${(index % 3) * 0.16}s` } as CSSProperties}>
+      <div className="pb-info">
+        <div className="pb-portrait pb-skeleton" />
+        <div className="pb-copy">
+          <div className="pb-skeleton pb-skeleton-line" />
+          <div className="pb-skeleton pb-skeleton-line" />
+          <div className="pb-skeleton pb-skeleton-line" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PlayerCard({ player, broken, onBroken }: {
   player: BrowserPlayer;
   broken: boolean;
@@ -115,7 +130,7 @@ export default function PlayerBrowser() {
                 <ul className="pb-list">
                   {clips.loading && !clips.shown.length && Array.from({ length: 5 }, (_, index) => (
                     <li key={`loading-${index}`} aria-hidden="true">
-                      <div className="pb-row">
+                      <div className="pb-row pb-skeleton-row" style={{ '--shimmer-delay': `${index * 0.12}s` } as CSSProperties}>
                         <div>
                           <div className="pb-skeleton pb-skeleton-line" />
                           <div className="pb-skeleton pb-skeleton-line short" />
@@ -143,7 +158,7 @@ export default function PlayerBrowser() {
                   ))}
                   {clips.loadingMore && Array.from({ length: 2 }, (_, index) => (
                     <li key={`more-${index}`} aria-hidden="true">
-                      <div className="pb-row">
+                      <div className="pb-row pb-skeleton-row" style={{ '--shimmer-delay': `${index * 0.12}s` } as CSSProperties}>
                         <div>
                           <div className="pb-skeleton pb-skeleton-line" />
                           <div className="pb-skeleton pb-skeleton-line short" />
@@ -182,15 +197,7 @@ export default function PlayerBrowser() {
           {library.error && <p role="alert" className="notice">{library.error}</p>}
           {library.loading && !library.players.length ? (
             <div className="pb-grid" aria-hidden="true">
-              {Array.from({ length: 6 }, (_, index) => (
-                <div className="pb-card pb-skeleton-card" key={index}>
-                  <div className="pb-portrait pb-skeleton" />
-                  <div className="pb-info">
-                    <div className="pb-skeleton pb-skeleton-line" />
-                    <div className="pb-skeleton pb-skeleton-line short" />
-                  </div>
-                </div>
-              ))}
+              {Array.from({ length: 6 }, (_, index) => <PlayerSkeleton key={index} index={index} />)}
             </div>
           ) : (
             <div className="pb-grid">
@@ -207,15 +214,7 @@ export default function PlayerBrowser() {
           )}
           {library.loadingMore && (
             <div className="pb-grid" aria-hidden="true">
-              {Array.from({ length: 3 }, (_, index) => (
-                <div className="pb-card pb-skeleton-card" key={index}>
-                  <div className="pb-portrait pb-skeleton" />
-                  <div className="pb-info">
-                    <div className="pb-skeleton pb-skeleton-line" />
-                    <div className="pb-skeleton pb-skeleton-line short" />
-                  </div>
-                </div>
-              ))}
+              {Array.from({ length: 3 }, (_, index) => <PlayerSkeleton key={index} index={index} />)}
             </div>
           )}
           {library.hasMore && <div ref={playersEndRef} className="pb-more" aria-hidden="true" />}
