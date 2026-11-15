@@ -36,7 +36,7 @@ function PlayerCard({ player, selected, broken, onBroken }: {
         <div className="pb-meta">{[player.position, countLabel(player.games, 'game', 'games')].filter(Boolean).join(' · ')}</div>
         <div className="pb-bottom">
           <span>{countLabel(player.clips, 'clip', 'clips')}</span>
-          <span>{selected ? 'Selected player' : 'View film ↗'}</span>
+          {/* <span>{selected ? 'Selected player' : 'View film ↗'}</span> */}
         </div>
       </div>
     </>
