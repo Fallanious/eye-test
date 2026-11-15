@@ -25,7 +25,10 @@ export function usePlayerClip() {
   }
 
   function play(playerId: number, clip: PlayerClip) {
-    if (active?.id === clip.id && urlRef.current) return;
+    if (active?.id === clip.id && urlRef.current) {
+      setActive(clip);
+      return;
+    }
     const token = ++requestId.current;
     setError('');
     setCutting(true);

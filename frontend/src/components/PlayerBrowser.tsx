@@ -17,26 +17,25 @@ function countLabel(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
 
-function PlayerCard({ player, selected, broken, onBroken }: {
+function PlayerCard({ player, broken, onBroken }: {
   player: BrowserPlayer;
-  selected?: boolean;
   broken: boolean;
   onBroken: () => void;
 }) {
   return (
     <>
       <div className="pb-portrait">
-        {player.team && <span className="pb-badge" style={{ background: TEAM_COLOR[player.team] || '#242426' }}>{player.team}</span>}
+        {(!player.headshot_url || broken) && <span className="pb-initials">{player.full_name.split(' ').slice(0, 2).map(name => name[0]).join('')}</span>}
         {player.headshot_url && !broken && (
           <img src={player.headshot_url} alt="" referrerPolicy="no-referrer" onError={onBroken} />
         )}
       </div>
       <div className="pb-info">
         <strong>{player.full_name}</strong>
+        {player.team && <span className="pb-badge" style={{ background: TEAM_COLOR[player.team] || '#242426' }}>{player.team}</span>}
         <div className="pb-meta">{[player.position, countLabel(player.games, 'game', 'games')].filter(Boolean).join(' · ')}</div>
         <div className="pb-bottom">
           <span>{countLabel(player.clips, 'clip', 'clips')}</span>
-          {/* <span>{selected ? 'Selected player' : 'View film ↗'}</span> */}
         </div>
       </div>
     </>
@@ -48,11 +47,13 @@ export default function PlayerBrowser() {
   const clips = usePlayerClips();
   const film = usePlayerClip();
   const [broken, setBroken] = useState<Record<number, boolean>>({});
+  const queueRef = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLLIElement>(null);
   const playersEndRef = useRef<HTMLDivElement>(null);
   const selected = clips.selected;
   const archive = library.season ? `${library.season} archive` : '';
   const markBroken = (id: number) => setBroken(prev => ({ ...prev, [id]: true }));
+  const activeIndex = clips.shown.findIndex(clip => clip.id === film.active?.id && clip.role === film.active?.role);
   const filters = [{ role: '', label: 'All plays' }, ...clips.roles];
 
   const { hasMore: moreClips, loadMore: loadMoreClips } = clips;
@@ -63,7 +64,7 @@ export default function PlayerBrowser() {
     if (!node || !moreClips) return;
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) void loadMoreClips();
-    });
+    }, { root: queueRef.current });
     observer.observe(node);
     return () => observer.disconnect();
   }, [moreClips, clips.clips.length, loadMoreClips, selected]);
@@ -82,82 +83,98 @@ export default function PlayerBrowser() {
     <>
       {selected ? (
         <>
-          <button className="pb-back" onClick={() => { film.clear(); clips.close(); }}>← All players</button>
+          <button className="pb-back" onClick={() => { film.clear(); clips.close(); }}>Back</button>
           <div className="pb-card pb-selected" aria-label={`${selected.full_name} selected player`}>
-            <PlayerCard
-              player={selected}
-              selected
-              broken={!!broken[selected.id]}
-              onBroken={() => markBroken(selected.id)}
-            />
+            <PlayerCard player={selected} broken={!!broken[selected.id]} onBroken={() => markBroken(selected.id)} />
           </div>
-          <section className="pb-plays" aria-label="Player plays">
-            <div className="pb-plays-head">
-              <h2>Plays</h2>
-              <span role="status">{clips.loading ? 'Loading plays…' : !clips.role && selected.clips ? `${countLabel(selected.clips, 'play', 'plays')}${library.season ? ` · ${library.season}` : ''}` : ''}</span>
-            </div>
-            {clips.error && <p role="alert" className="notice">{clips.error}</p>}
-            <div className="pb-types">
-              {filters.map(item => (
-                <button key={item.label} aria-pressed={clips.role === item.role} className={clips.role === item.role ? 'active' : ''} onClick={() => { film.clear(); clips.chooseRole(item.role); }}>{item.label}</button>
-              ))}
-            </div>
-            {film.cutting && !film.url && <div className="pb-shimmer" role="status" aria-label="Loading this play" />}
-            {film.error && <p role="alert" className="notice">{film.error}</p>}
-            {film.url && (
-              <video className="main-player pb-film" controls preload="auto" src={film.url} />
-            )}
-            <ul className="pb-list">
-              {clips.loading && !clips.shown.length && Array.from({ length: 5 }, (_, index) => (
-                <li key={`loading-${index}`} aria-hidden="true">
-                  <div className="pb-row">
-                    <div>
-                      <div className="pb-skeleton pb-skeleton-line" />
-                      <div className="pb-skeleton pb-skeleton-line short" />
-                    </div>
-                    <div className="pb-skeleton pb-skeleton-line pb-kind" />
-                    <div className="pb-skeleton pb-skeleton-line" />
-                  </div>
-                </li>
-              ))}
-              {clips.shown.map(clip => (
-                <li key={`${clip.id}-${clip.role}`}>
-                  <button
-                    className={`pb-row ${film.active?.id === clip.id && film.active.role === clip.role ? 'current' : ''}`}
-                    aria-pressed={film.active?.id === clip.id && film.active.role === clip.role}
-                    onClick={() => film.play(selected.id, clip)}
-                  >
-                    <span>
-                      <strong>{clip.description}</strong>
-                      <small>{clip.matchup} · Q{clip.period} · {clip.game_clock}</small>
-                    </span>
-                    <span className="pb-kind">{clip.role_label}</span>
-                    <span className="pb-duration">{clip.duration_label}</span>
-                  </button>
-                </li>
-              ))}
-              {clips.loadingMore && Array.from({ length: 2 }, (_, index) => (
-                <li key={`more-${index}`} aria-hidden="true">
-                  <div className="pb-row">
-                    <div>
-                      <div className="pb-skeleton pb-skeleton-line" />
-                      <div className="pb-skeleton pb-skeleton-line short" />
-                    </div>
-                    <div className="pb-skeleton pb-skeleton-line pb-kind" />
-                    <div className="pb-skeleton pb-skeleton-line" />
-                  </div>
-                </li>
-              ))}
-              {clips.hasMore && <li ref={endRef} className="pb-more" aria-hidden="true" />}
-            </ul>
-            {!clips.loading && !clips.loadingMore && !clips.shown.length && <p className="empty">No plays in this group.</p>}
-          </section>
+          <div className="pb-session">
+            <section className="pb-preview" aria-label="Film preview">
+              <div className="pb-stage" aria-busy={film.cutting}>
+                {film.url ? <video className="main-player pb-film" controls playsInline preload="auto" src={film.url} /> :
+                  <div className={`pb-placeholder ${film.cutting ? 'pb-shimmer' : ''}`} role="status">
+                    {film.cutting ? 'Loading this play…' : film.error ? 'Preview unavailable' : 'Select a play to watch'}
+                  </div>}
+              </div>
+              {film.error && <p role="alert" className="notice">{film.error}</p>}
+              <div className="pb-now" aria-live="polite">
+                {film.active ? <>
+                  <p className="eyebrow">Selected play</p>
+                  <h2>{film.active.description}</h2>
+                  <p>{film.active.matchup} · Q{film.active.period} · {film.active.game_clock} · {film.active.role_label}</p>
+                </> : <p>Choose a play from the list. The preview stays here while you browse.</p>}
+              </div>
+              {film.active && <div className="pb-transport">
+                <button className="quiet" disabled={activeIndex <= 0} onClick={() => film.play(selected.id, clips.shown[activeIndex - 1])}>Previous play</button>
+                <button className="quiet" disabled={activeIndex < 0 || activeIndex >= clips.shown.length - 1} onClick={() => film.play(selected.id, clips.shown[activeIndex + 1])}>Next play</button>
+              </div>}
+            </section>
+            <section className="pb-plays" aria-label="Player plays">
+              <div className="pb-queue-head">
+                <div className="pb-plays-head">
+                  <h2>Plays</h2>
+                  <span role="status">{clips.loading ? 'Loading plays…' : !clips.role ? countLabel(selected.clips, 'clip', 'clips') : ''}</span>
+                </div>
+                <div className="pb-types">
+                  {filters.map(item => (
+                    <button key={item.label} aria-pressed={clips.role === item.role} className={clips.role === item.role ? 'active' : ''} onClick={() => { clips.chooseRole(item.role); if (queueRef.current) queueRef.current.scrollTop = 0; }}>{item.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="pb-queue-scroll" ref={queueRef}>
+                {clips.error && <p role="alert" className="notice">{clips.error}</p>}
+                <ul className="pb-list">
+                  {clips.loading && !clips.shown.length && Array.from({ length: 5 }, (_, index) => (
+                    <li key={`loading-${index}`} aria-hidden="true">
+                      <div className="pb-row">
+                        <div>
+                          <div className="pb-skeleton pb-skeleton-line" />
+                          <div className="pb-skeleton pb-skeleton-line short" />
+                        </div>
+                        <div className="pb-skeleton pb-skeleton-line pb-kind" />
+                        <div className="pb-skeleton pb-skeleton-line" />
+                      </div>
+                    </li>
+                  ))}
+                  {clips.shown.map(clip => (
+                    <li key={`${clip.id}-${clip.role}`}>
+                      <button
+                        className={`pb-row ${film.active?.id === clip.id && film.active.role === clip.role ? 'current' : ''}`}
+                        aria-pressed={film.active?.id === clip.id && film.active.role === clip.role}
+                        onClick={() => film.play(selected.id, clip)}
+                      >
+                        <span>
+                          <strong>{clip.description}</strong>
+                          <small>{clip.matchup} · Q{clip.period} · {clip.game_clock}</small>
+                        </span>
+                        <span className="pb-kind">{clip.role_label}</span>
+                        <span className="pb-duration">{clip.duration_label}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {clips.loadingMore && Array.from({ length: 2 }, (_, index) => (
+                    <li key={`more-${index}`} aria-hidden="true">
+                      <div className="pb-row">
+                        <div>
+                          <div className="pb-skeleton pb-skeleton-line" />
+                          <div className="pb-skeleton pb-skeleton-line short" />
+                        </div>
+                        <div className="pb-skeleton pb-skeleton-line pb-kind" />
+                        <div className="pb-skeleton pb-skeleton-line" />
+                      </div>
+                    </li>
+                  ))}
+                  {clips.hasMore && <li ref={endRef} className="pb-more" aria-hidden="true" />}
+                </ul>
+                {!clips.loading && !clips.loadingMore && !clips.shown.length && <p className="empty">No plays in this group.</p>}
+              </div>
+            </section>
+          </div>
         </>
       ) : (
         <>
           <header className="pb-head">
             <div>
-              <p className="eyebrow">SCOUT. STUDY. REPEAT.</p>
+
               <div className="pb-title">
                 <h1>Player Library</h1>
                 {archive && <span>{archive}</span>}
@@ -189,7 +206,7 @@ export default function PlayerBrowser() {
           ) : (
             <div className="pb-grid">
               {library.players.map(player => (
-                <button className="pb-card" key={player.id} onClick={() => void clips.open(player)}>
+                <button className="pb-card" key={player.id} onClick={() => { window.scrollTo({ top: 0 }); void clips.open(player); }}>
                   <PlayerCard
                     player={player}
                     broken={!!broken[player.id]}
