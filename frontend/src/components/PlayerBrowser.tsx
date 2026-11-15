@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { usePlayerClip } from '../hooks/usePlayerClip';
 import { usePlayerClips } from '../hooks/usePlayerClips';
 import { usePlayerLibrary } from '../hooks/usePlayerLibrary';
@@ -22,23 +22,24 @@ function PlayerCard({ player, broken, onBroken }: {
   broken: boolean;
   onBroken: () => void;
 }) {
+  const color = player.team ? TEAM_COLOR[player.team] || '#242426' : undefined;
   return (
-    <>
+    <div className="pb-info" style={{ '--player-color': color || '#242426', borderColor: color } as CSSProperties}>
       <div className="pb-portrait">
         {(!player.headshot_url || broken) && <span className="pb-initials">{player.full_name.split(' ').slice(0, 2).map(name => name[0]).join('')}</span>}
         {player.headshot_url && !broken && (
           <img src={player.headshot_url} alt="" referrerPolicy="no-referrer" onError={onBroken} />
         )}
       </div>
-      <div className="pb-info">
+      <div className="pb-copy">
+        {player.team && <span className="pb-abbr" style={{ color }}>{player.team}</span>}
         <strong>{player.full_name}</strong>
-        {player.team && <span className="pb-badge" style={{ background: TEAM_COLOR[player.team] || '#242426' }}>{player.team}</span>}
         <div className="pb-meta">{[player.position, countLabel(player.games, 'game', 'games')].filter(Boolean).join(' · ')}</div>
         <div className="pb-bottom">
           <span>{countLabel(player.clips, 'clip', 'clips')}</span>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -53,7 +54,6 @@ export default function PlayerBrowser() {
   const selected = clips.selected;
   const archive = library.season ? `${library.season} archive` : '';
   const markBroken = (id: number) => setBroken(prev => ({ ...prev, [id]: true }));
-  const activeIndex = clips.shown.findIndex(clip => clip.id === film.active?.id && clip.role === film.active?.role);
   const filters = [{ role: '', label: 'All plays' }, ...clips.roles];
 
   const { hasMore: moreClips, loadMore: loadMoreClips } = clips;
@@ -96,17 +96,7 @@ export default function PlayerBrowser() {
                   </div>}
               </div>
               {film.error && <p role="alert" className="notice">{film.error}</p>}
-              <div className="pb-now" aria-live="polite">
-                {film.active ? <>
-                  <p className="eyebrow">Selected play</p>
-                  <h2>{film.active.description}</h2>
-                  <p>{film.active.matchup} · Q{film.active.period} · {film.active.game_clock} · {film.active.role_label}</p>
-                </> : <p>Choose a play from the list. The preview stays here while you browse.</p>}
-              </div>
-              {film.active && <div className="pb-transport">
-                <button className="quiet" disabled={activeIndex <= 0} onClick={() => film.play(selected.id, clips.shown[activeIndex - 1])}>Previous play</button>
-                <button className="quiet" disabled={activeIndex < 0 || activeIndex >= clips.shown.length - 1} onClick={() => film.play(selected.id, clips.shown[activeIndex + 1])}>Next play</button>
-              </div>}
+
             </section>
             <section className="pb-plays" aria-label="Player plays">
               <div className="pb-queue-head">
@@ -190,7 +180,6 @@ export default function PlayerBrowser() {
             </select>
           </div>
           {library.error && <p role="alert" className="notice">{library.error}</p>}
-          <p className="pb-count" role="status">{library.loading ? 'Loading players…' : countLabel(library.total, 'player with clips', 'players with clips')}</p>
           {library.loading && !library.players.length ? (
             <div className="pb-grid" aria-hidden="true">
               {Array.from({ length: 6 }, (_, index) => (
