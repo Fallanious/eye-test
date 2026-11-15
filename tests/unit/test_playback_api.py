@@ -27,7 +27,7 @@ class Connection:
     ((0, 121, 'game.mkv'), 422), ((float('nan'), 2, 'game.mkv'), 422)])
 def test_invalid_clip_never_signs_or_cuts(tmp_path, monkeypatch, row, status):
     app = create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path/'limits'),
-                      'EYE_TEST_DATABASE_URL': 'unused'})
+                      'DATABASE_URL': 'unused'})
     conn = Connection(row)
     monkeypatch.setattr(players, '_open', lambda _: (conn, None))
     def refuse(*args):
@@ -39,7 +39,7 @@ def test_invalid_clip_never_signs_or_cuts(tmp_path, monkeypatch, row, status):
 
 def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch):
     app = create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path/'limits'),
-                      'EYE_TEST_DATABASE_URL': 'unused'})
+                      'DATABASE_URL': 'unused'})
     monkeypatch.setattr(players, '_open', lambda _: (Connection((2, 5, 'games/game.mkv')), None))
     monkeypatch.setattr('services.storage.presign_get_url', lambda _: 'https://film.test/signed')
     paths = []

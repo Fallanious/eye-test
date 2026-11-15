@@ -49,7 +49,7 @@ The multi-stage image builds React, installs ffmpeg, and starts Gunicorn as a no
 
 Configure these in the hosting service's secret/environment settings:
 
-- `EYE_TEST_DATABASE_URL`: the existing Neon pooled URL, ideally with a SELECT-only role. Requests also enforce read-only transactions and an 8-second SQL timeout.
+- `DATABASE_URL`: the existing Neon pooled URL, ideally with a SELECT-only role. Requests also enforce read-only transactions and an 8-second SQL timeout.
 - `S3_BUCKET`, `AWS_REGION`: existing game storage. Assign an IAM role with `s3:GetObject` for the game-film prefix, or supply AWS credentials through your host's secret manager.
 - `REDIS_URL`: **required for shared limits across multiple cloud replicas**, including TLS via `rediss://` where needed. Every replica must use the same Redis. Redis failure rejects API requests with 503 rather than bypassing limits. Empty uses SQLite, suitable only for one instance.
 - `EYE_TEST_TRUSTED_PROXY_HOPS`: exact number of trusted forwarding proxies. Default 0 ignores forwarded client IPs. If enabled, restrict origin access to those proxies.

@@ -140,19 +140,23 @@ def clip_window(start_s, end_s):
 
 
 def _db_params():
-    url = current_app.config.get("EYE_TEST_DATABASE_URL")
+    url = current_app.config.get("DATABASE_URL")
     if not url:
         return None, (jsonify({"error": "Player library is unavailable."}), 503)
-    return {"conninfo": url, "options": "-c default_transaction_read_only=on -c statement_timeout=8000"}, None
+    return {"conninfo": url}, None
 
 
 def _open(params):
     import psycopg
 
+    conn = None
     try:
-        return psycopg.connect(**params, connect_timeout=8), None
+        conn = psycopg.connect(**params, connect_timeout=8)
+        return conn, None
     except Exception:
-        return None, (jsonify({"error": "Database login failed."}), 503)
+        if conn is not None:
+            conn.close()
+        return None, (jsonify({"error": "Database connection unavailable."}), 503)
 
 
 def _player_payload(row):

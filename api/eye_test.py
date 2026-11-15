@@ -17,7 +17,7 @@ def create_app(overrides=None):
     dist = Path(__file__).resolve().parents[1] / 'frontend' / 'dist'
     app = Flask(__name__, static_folder=None)
     app.config.from_mapping(
-        EYE_TEST_DATABASE_URL=os.getenv('EYE_TEST_DATABASE_URL') or os.getenv('DATABASE_URL', ''),
+        DATABASE_URL=os.getenv('DATABASE_URL'),
         REDIS_URL=os.getenv('REDIS_URL', ''),
         RATE_LIMIT_PATH=os.getenv('EYE_TEST_RATE_LIMIT_PATH', '/tmp/eye-test-limits.sqlite3'),
         BROWSE_PER_MINUTE=int(os.getenv('EYE_TEST_BROWSE_PER_MINUTE', '120')),

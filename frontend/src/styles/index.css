@@ -127,36 +127,6 @@ h3 {
   color: #8b8b91
 }
 
-.side-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 6px
-}
-
-.nav-item,
-.nav-selected {
-  display: flex;
-  width: 100%;
-  text-align: left;
-  gap: 14px;
-  padding: 13px 16px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: #202023;
-  font-size: 15px;
-  font-weight: 500
-}
-
-.nav-item:hover,
-.nav-selected:hover {
-  background: #ededf0
-}
-
-.nav-selected {
-  background: #e5e5e7
-}
-
 .local-note {
   margin-top: auto;
   font-size: 9px;
@@ -639,16 +609,6 @@ header {
   .brand span,
   .local-note {
     display: none
-  }
-
-  .nav-selected,
-  .nav-item {
-    width: auto;
-    padding: 9px 15px
-  }
-
-  .side-nav {
-    flex-direction: row
   }
 
   main {

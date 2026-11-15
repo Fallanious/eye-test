@@ -55,13 +55,12 @@ def test_shared_atomic_limits_and_expiration(tmp_path):
 
 def test_public_database_is_read_only_and_keeps_pooler(tmp_path):
     url = 'postgresql://reader:password@example-pooler.neon.tech/neondb'
-    app = make_app(tmp_path, EYE_TEST_DATABASE_URL=url)
+    app = make_app(tmp_path, DATABASE_URL=url)
     with app.app_context():
         params, error = _db_params()
     assert error is None
     assert params['conninfo'] == url
-    assert 'default_transaction_read_only=on' in params['options']
-    assert 'statement_timeout=8000' in params['options']
+    assert 'options' not in params
 
 
 def test_limit_storage_failure_fails_closed(tmp_path):
@@ -69,3 +68,37 @@ def test_limit_storage_failure_fails_closed(tmp_path):
     (tmp_path / 'limits.sqlite3').unlink()
     response = app.test_client().get('/api/players')
     assert response.status_code == 503
+
+
+def test_database_guards_are_set_before_queries(tmp_path, monkeypatch):
+    from routes.players import _open
+    calls = []
+    class Connection:
+        def execute(self, sql):
+            calls.append(sql)
+    connection = Connection()
+    def connect(**kwargs):
+        assert 'options' not in kwargs
+        return connection
+    monkeypatch.setattr('psycopg.connect', connect)
+    app = make_app(tmp_path)
+    with app.app_context():
+        conn, error = _open({'conninfo': 'unused'})
+    assert conn is connection and error is None
+    assert calls == ['SET TRANSACTION READ ONLY', "SET LOCAL statement_timeout = '8s'"]
+
+
+def test_database_guard_failure_closes_connection(tmp_path, monkeypatch):
+    from routes.players import _open
+    class Connection:
+        closed = False
+        def execute(self, sql):
+            raise RuntimeError('setup failed')
+        def close(self):
+            self.closed = True
+    connection = Connection()
+    monkeypatch.setattr('psycopg.connect', lambda **kwargs: connection)
+    with make_app(tmp_path).app_context():
+        conn, error = _open({'conninfo': 'unused'})
+    assert conn is None and error[1] == 503
+    assert connection.closed
