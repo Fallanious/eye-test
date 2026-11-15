@@ -45,7 +45,7 @@ docker build -t eyetest .
 docker run --rm --env-file .env -p 8080:8080 eyetest
 ```
 
-The multi-stage image builds React, installs ffmpeg, and starts Gunicorn as a non-root user. It serves both the UI and API on `PORT` (default 8080), so production needs no cross-origin browser configuration. `/healthz` is a process liveness endpoint, not a database readiness check. Without Docker, build the frontend and run `bash scripts/serve.sh`.
+The image installs ffmpeg and starts Gunicorn as a non-root user. It serves the API on `PORT` (default 8080). Host the React app separately (Cloudflare or S3/CloudFront). Build it with `VITE_API_BASE` set to the API origin, and set `EYE_TEST_ALLOWED_ORIGINS` to that UI origin. `/healthz` is a process liveness endpoint, not a database readiness check. Without Docker, build the frontend and run `bash scripts/serve.sh`; that local process also serves `frontend/dist` when the build is present.
 
 Configure these in the hosting service's secret/environment settings:
 

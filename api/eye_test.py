@@ -12,6 +12,10 @@ from public_limits import RateLimits, RedisRateLimits, LimiterUnavailable
 from routes.players import bp
 
 
+def _origins(raw):
+    return {item.strip().rstrip('/') for item in (raw or '').split(',') if item.strip()}
+
+
 def create_app(overrides=None):
     load_dotenv()
     dist = Path(__file__).resolve().parents[1] / 'frontend' / 'dist'
@@ -24,6 +28,7 @@ def create_app(overrides=None):
         PLAYBACK_PER_MINUTE=int(os.getenv('EYE_TEST_PLAYBACK_PER_MINUTE', '10')),
         GLOBAL_PLAYBACK_PER_MINUTE=int(os.getenv('EYE_TEST_GLOBAL_PLAYBACK_PER_MINUTE', '30')),
         TRUSTED_PROXY_HOPS=int(os.getenv('EYE_TEST_TRUSTED_PROXY_HOPS', '0')),
+        ALLOWED_ORIGINS=_origins(os.getenv('EYE_TEST_ALLOWED_ORIGINS', '')),
     )
     if overrides:
         app.config.update(overrides)
@@ -39,6 +44,21 @@ def create_app(overrides=None):
                else RateLimits(app.config['RATE_LIMIT_PATH']))
     app.extensions['rate_limiter'] = limiter
     app.register_blueprint(bp)
+
+    @app.before_request
+    def cors_preflight():
+        if request.method != 'OPTIONS':
+            return None
+        origin = request.headers.get('Origin', '').rstrip('/')
+        if origin not in app.config['ALLOWED_ORIGINS']:
+            return None
+        response = app.response_class('', status=204)
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        response.headers['Access-Control-Max-Age'] = '600'
+        response.headers['Vary'] = 'Origin'
+        return response
 
     @app.before_request
     def limit_requests():
@@ -62,6 +82,13 @@ def create_app(overrides=None):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         if response.status_code >= 400:
             response.headers['Cache-Control'] = 'no-store'
+        origin = request.headers.get('Origin', '').rstrip('/')
+        if origin in app.config['ALLOWED_ORIGINS']:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            vary = [part.strip() for part in response.headers.get('Vary', '').split(',') if part.strip()]
+            if 'Origin' not in vary:
+                vary.append('Origin')
+            response.headers['Vary'] = ', '.join(vary)
         return response
 
     @app.errorhandler(Exception)
@@ -75,13 +102,14 @@ def create_app(overrides=None):
     def health():
         return jsonify(status='ok')
 
-    @app.get('/')
-    def index():
-        return send_from_directory(dist, 'index.html')
+    if (dist / 'index.html').is_file():
+        @app.get('/')
+        def index():
+            return send_from_directory(dist, 'index.html')
 
-    @app.get('/assets/<path:filename>')
-    def assets(filename):
-        return send_from_directory(dist / 'assets', filename)
+        @app.get('/assets/<path:filename>')
+        def assets(filename):
+            return send_from_directory(dist / 'assets', filename)
 
     return app
 

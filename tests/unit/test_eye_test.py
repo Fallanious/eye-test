@@ -10,6 +10,19 @@ def make_app(tmp_path, **kwargs):
     return create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path / 'limits.sqlite3'), **kwargs})
 
 
+def test_browser_origin_is_echoed_only_when_listed(tmp_path):
+    app = make_app(tmp_path, ALLOWED_ORIGINS={'https://eye.example'})
+    client = app.test_client()
+    allowed = client.get('/healthz', headers={'Origin': 'https://eye.example'})
+    assert allowed.headers['Access-Control-Allow-Origin'] == 'https://eye.example'
+    assert 'Origin' in allowed.headers['Vary']
+    blocked = client.get('/healthz', headers={'Origin': 'https://other.example'})
+    assert 'Access-Control-Allow-Origin' not in blocked.headers
+    preflight = client.options('/api/players', headers={'Origin': 'https://eye.example'})
+    assert preflight.status_code == 204
+    assert preflight.headers['Access-Control-Allow-Origin'] == 'https://eye.example'
+
+
 def test_only_public_routes_are_registered(tmp_path):
     app = make_app(tmp_path)
     endpoints = {rule.rule for rule in app.url_map.iter_rules() if rule.rule.startswith('/api/')}
