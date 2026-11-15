@@ -1,0 +1,91 @@
+"""Eye Test: public, read-only player library API and React application."""
+import os
+import sqlite3
+from pathlib import Path
+
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request, send_from_directory
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from public_limits import RateLimits, RedisRateLimits, LimiterUnavailable
+from routes.players import bp
+
+
+def create_app(overrides=None):
+    load_dotenv()
+    dist = Path(__file__).resolve().parents[1] / 'frontend' / 'dist'
+    app = Flask(__name__, static_folder=None)
+    app.config.from_mapping(
+        EYE_TEST_DATABASE_URL=os.getenv('EYE_TEST_DATABASE_URL') or os.getenv('DATABASE_URL', ''),
+        REDIS_URL=os.getenv('REDIS_URL', ''),
+        RATE_LIMIT_PATH=os.getenv('EYE_TEST_RATE_LIMIT_PATH', '/tmp/eye-test-limits.sqlite3'),
+        BROWSE_PER_MINUTE=int(os.getenv('EYE_TEST_BROWSE_PER_MINUTE', '120')),
+        PLAYBACK_PER_MINUTE=int(os.getenv('EYE_TEST_PLAYBACK_PER_MINUTE', '10')),
+        GLOBAL_PLAYBACK_PER_MINUTE=int(os.getenv('EYE_TEST_GLOBAL_PLAYBACK_PER_MINUTE', '30')),
+        TRUSTED_PROXY_HOPS=int(os.getenv('EYE_TEST_TRUSTED_PROXY_HOPS', '0')),
+    )
+    if overrides:
+        app.config.update(overrides)
+    for key in ('BROWSE_PER_MINUTE', 'PLAYBACK_PER_MINUTE', 'GLOBAL_PLAYBACK_PER_MINUTE'):
+        if app.config[key] < 1:
+            raise ValueError(f'{key} must be positive')
+    hops = app.config['TRUSTED_PROXY_HOPS']
+    if hops < 0:
+        raise ValueError('TRUSTED_PROXY_HOPS must be nonnegative')
+    if hops:
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=hops)
+    limiter = (RedisRateLimits(app.config['REDIS_URL']) if app.config['REDIS_URL']
+               else RateLimits(app.config['RATE_LIMIT_PATH']))
+    app.extensions['rate_limiter'] = limiter
+    app.register_blueprint(bp)
+
+    @app.before_request
+    def limit_requests():
+        if not request.path.startswith('/api/'):
+            return None
+        identity = request.remote_addr or 'unknown'
+        budgets = [(f'browse:{identity}', app.config['BROWSE_PER_MINUTE'])]
+        if request.endpoint == 'players.serve_player_clip':
+            budgets += [(f'play:{identity}', app.config['PLAYBACK_PER_MINUTE']),
+                        ('play:global', app.config['GLOBAL_PLAYBACK_PER_MINUTE'])]
+        try:
+            retry = limiter.take(budgets)
+        except (sqlite3.Error, LimiterUnavailable):
+            return jsonify(error='Service temporarily unavailable.'), 503, {'Retry-After': '5'}
+        if retry:
+            return jsonify(error=f'Too many requests. Try again in {retry} seconds.'), 429, {'Retry-After': str(retry)}
+
+    @app.after_request
+    def headers(response):
+        response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if response.status_code >= 400:
+            response.headers['Cache-Control'] = 'no-store'
+        return response
+
+    @app.errorhandler(Exception)
+    def errors(exc):
+        if isinstance(exc, HTTPException):
+            return jsonify(error=exc.description), exc.code
+        app.logger.error('Eye Test request failed (%s)', type(exc).__name__)
+        return jsonify(error='Service temporarily unavailable.'), 503
+
+    @app.get('/healthz')
+    def health():
+        return jsonify(status='ok')
+
+    @app.get('/')
+    def index():
+        return send_from_directory(dist, 'index.html')
+
+    @app.get('/assets/<path:filename>')
+    def assets(filename):
+        return send_from_directory(dist / 'assets', filename)
+
+    return app
+
+
+if __name__ == '__main__':
+    create_app().run(host=os.getenv('EYE_TEST_BIND_HOST', '127.0.0.1'),
+                     port=int(os.getenv('EYE_TEST_PORT', '5009')), debug=False)

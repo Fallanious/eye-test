@@ -1,0 +1,15 @@
+# Front-facing logo exploration
+
+Generated with built-in imagegen. Output: `logo-front-angles-v2.png`.
+
+Three Magic Johnson-inspired fast-break silhouette studies. Candidate 01 still reads more like dribbling; 02 and 03 communicate the no-look pass more clearly. Raster concepts for further refinement.
+
+Visual research: https://www.nba.com/watch/video/magic-johnsons-signature-move-no-look-pass
+
+## Exact generation prompt
+
+Use case: logo-brand. Create a refined logo exploration board for EYE TEST, basketball film app. Three clearly distinct black silhouette logo candidates side by side on a pure warm white background. Each is a full-body basketball player COMING DOWN THE COURT DIRECTLY TOWARD THE CAMERA, based on the fluid upright fast-break no-look passing body language of 1980s Magic Johnson. Camera is in FRONT of the player, looking at his chest, NEVER side-on and NEVER from behind. Shoulders and chest face viewer; head alone turns away from passing direction. Tall lean athletic build, close cropped hair, classic short basketball shorts, natural anatomy, strong elegant simplified silhouette. Solid black filled shapes, no facial details, no jersey lettering, no number, no internal muscle drawings, no shoe detail, no ball seams, tiny clean negative spaces separating arms and torso. Professional iconic sports identity, clean vector-like edges. Ball solid circle, hands simplified instead of many spidery fingers. 
+Candidate 01 "HEAD ON": camera centered at chest height in front, chest square to viewer, head turned toward viewer LEFT with readable nose profile, left arm on viewer RIGHT extends diagonally down and outward with ball just released at hip height, other arm naturally bent near opposite waist; one knee driving forward, other leg trails behind, visibly running toward viewer.
+Candidate 02 "LOW ANGLE": front camera slightly below waist, slight foreshortening with forward leg larger, upright torso square to camera, head looking viewer RIGHT while ball passed to viewer LEFT at waist height, natural sweeping one-handed underhand no-look pass, opposite bent arm clearly separated, graceful fast break.
+Candidate 03 "FRONT THREE-QUARTER": camera 20 degrees off front, still clearly shows front chest and both shoulders, head turned viewer LEFT and pass delivered toward viewer RIGHT, ball held at the release point on extended palm at waist level, staggered running stride toward camera, torso relaxed not crouched.
+Each candidate large, equally weighted, with plenty of white space and same small understated sans serif EYE TEST wordmark below and numeric angle label. Below each large silhouette show a small reverse version of THAT EXACT silhouette in a narrow tall black rectangle with modest rounded corners, player in white, to test emblem use. Monochrome only. The poses must be different from each other. Avoid sideways lunging, squatting, starfish arms, dribbling, shooting, dunking, jumping, stretched legs sideways. Do not imitate previous logo. Aim for a beautifully distilled timeless silhouette recognizable at tiny size. Wide landscape board with clean precise spacing.
