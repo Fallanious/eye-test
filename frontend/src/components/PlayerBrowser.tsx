@@ -243,7 +243,7 @@ export default function PlayerBrowser() {
                 <h1>Player Library</h1>
                 {archive && <span>{archive}</span>}
               </div>
-              <p>Find a player. Get straight to the film.</p>
+              <p>Browse clips by player.</p>
             </div>
           </header>
           <div className="toolbar pb-toolbar">

@@ -9,7 +9,6 @@ export default function App() {
         <span className="brand-wordmark" aria-hidden="true"><span>EYE</span><span>TEST</span></span>
       </a>
       <span className="app-section">Library</span>
-      <span className="app-tagline">Basketball, on film.</span>
     </header>
     <main><PlayerBrowser /></main>
   </div>;
