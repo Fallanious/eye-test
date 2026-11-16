@@ -11,5 +11,8 @@ export default function App() {
       <span className="app-section">Library</span>
     </header>
     <main><PlayerBrowser /></main>
+    <footer className="app-disclaimer">
+      EYE TEST is an independent project and is not affiliated with, endorsed by, or sponsored by the NBA or any NBA team.
+    </footer>
   </div>;
 }

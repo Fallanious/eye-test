@@ -148,6 +148,22 @@ main {
   max-width: 1920px;
 }
 
+.app-disclaimer {
+  max-width: 1920px;
+  margin: 24px auto 0;
+  padding: 20px 32px 28px;
+  border-top: 1px solid #cbc6bd;
+  color: #62605b;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+@media (max-width: 700px) {
+  .app-disclaimer {
+    padding: 16px;
+  }
+}
+
 .pb-head {
   margin-bottom: 20px;
 }
