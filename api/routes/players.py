@@ -1,4 +1,4 @@
-"""Players who have clips, and one cut of a clip from the S3 game."""
+"""Player catalog, clip metadata, and cuts from the S3 game."""
 
 import math
 import os
@@ -173,8 +173,8 @@ def _player_payload(row):
 
 
 @bp.route("/api/players")
-def list_players_with_clips():
-    """One page of players who have clips. The cursor is the last player id shown."""
+def list_players():
+    """One page of all catalog players, including those without clips."""
     try:
         cursor, team, query = player_page_request(request.args)
     except ValueError as exc:
@@ -211,9 +211,7 @@ def list_players_with_clips():
             for row in conn.execute(
                 """
                 SELECT DISTINCT t.abbr
-                FROM players p
-                JOIN clip_players cp ON cp.player_id = p.id
-                JOIN teams t ON t.id = p.team_id
+                FROM teams t
                 ORDER BY t.abbr
                 """
             )
@@ -226,7 +224,6 @@ def list_players_with_clips():
                 FROM players p
                 LEFT JOIN teams t ON t.id = p.team_id
                 WHERE p.id = %s
-                  AND EXISTS (SELECT 1 FROM clip_players cp WHERE cp.player_id = p.id)
                   {filter_sql}
                 """,
                 [cursor, *filter_params],
@@ -246,8 +243,8 @@ def list_players_with_clips():
                    COUNT(DISTINCT cp.clip_id),
                    COUNT(DISTINCT c.game_id)
             FROM players p
-            JOIN clip_players cp ON cp.player_id = p.id
-            JOIN clips c ON c.id = cp.clip_id
+            LEFT JOIN clip_players cp ON cp.player_id = p.id
+            LEFT JOIN clips c ON c.id = cp.clip_id
             LEFT JOIN teams t ON t.id = p.team_id
             WHERE TRUE
             {filter_sql}
@@ -263,7 +260,6 @@ def list_players_with_clips():
             SELECT COUNT(*) FROM (
                 SELECT p.id
                 FROM players p
-                JOIN clip_players cp ON cp.player_id = p.id
                 LEFT JOIN teams t ON t.id = p.team_id
                 WHERE TRUE
                 {filter_sql}
