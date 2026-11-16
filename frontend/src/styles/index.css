@@ -764,14 +764,13 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .pb-shimmer,
-.pb-skeleton-card,
-.pb-skeleton-row {
+.pb-skeleton {
   position: relative;
   overflow: hidden;
 }
 
 .pb-skeleton {
-  background: #e2e3e8;
+  background: #c3bcb2;
 }
 
 .pb-skeleton-line {
@@ -787,8 +786,7 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .pb-shimmer::after,
-.pb-skeleton-card::after,
-.pb-skeleton-row::after {
+.pb-skeleton::after {
   content: '';
   position: absolute;
   inset: 0;
@@ -798,13 +796,12 @@ button.pb-card:focus-visible .pb-info {
   animation-delay: var(--shimmer-delay, 0s);
 }
 
-.pb-skeleton-card::after,
-.pb-skeleton-row::after {
+.pb-skeleton::after {
   background: linear-gradient(105deg,
       transparent 28%,
-      rgba(255, 255, 255, .28) 44%,
-      rgba(255, 255, 255, .95) 50%,
-      rgba(255, 255, 255, .28) 56%,
+      rgba(77, 65, 52, .08) 44%,
+      rgba(77, 65, 52, .22) 50%,
+      rgba(77, 65, 52, .08) 56%,
       transparent 72%);
 }
 
@@ -971,8 +968,7 @@ button.pb-card:focus-visible .pb-info {
 @media(prefers-reduced-motion:reduce) {
 
   .pb-shimmer::after,
-  .pb-skeleton-card::after,
-  .pb-skeleton-row::after {
+  .pb-skeleton::after {
     animation: none;
   }
 
@@ -1046,7 +1042,7 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .pb-grid .pb-skeleton-card .pb-portrait {
-  background: #e2e3e8;
+  background: #c3bcb2;
 }
 
 @media (max-width: 900px) {
