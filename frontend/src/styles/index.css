@@ -1,6 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
+  --radius-card: 12px;
+  --radius-control: 10px;
   --page-surface: #e9e5de;
   font-family: 'DM Sans', sans-serif;
   color: #202023;
@@ -28,7 +30,7 @@ button {
   background: #fff;
   color: inherit;
   padding: 10px 14px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-weight: 500;
 }
 
@@ -52,7 +54,7 @@ select:focus-visible {
 input,
 select {
   border: 1px solid #dedee1;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   padding: 10px 12px;
   background: #fff;
   color: #252528;
@@ -202,7 +204,7 @@ main {
 .pb-toolbar input,
 .pb-toolbar select {
   min-height: 44px;
-  border-radius: 2px;
+  border-radius: var(--radius-control);
   border-color: #bcb6ad;
   background: #f5f2ec;
 }
@@ -311,7 +313,7 @@ main {
   gap: 0;
   padding: 0;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-card);
   background: transparent;
   text-align: left;
   color: inherit;
@@ -358,7 +360,7 @@ main {
   min-width: 0;
   position: relative;
   border: 3.5px solid #e2e3e7;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   padding: 10px 14px;
   background: #fff;
 }
@@ -378,6 +380,7 @@ button.pb-card::after,
   position: absolute;
   inset: 0;
   background: var(--card-back);
+  border-radius: var(--radius-card);
   pointer-events: none;
   opacity: 0;
   transition: transform .18s ease, opacity .18s ease;
@@ -397,12 +400,12 @@ button.pb-card::after,
 
 button.pb-card .pb-info {
   z-index: 3;
-  border-radius: 0;
+  border-radius: var(--radius-card);
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
 button.pb-card .pb-portrait {
-  border-radius: 0;
+  border-radius: var(--radius-card);
 }
 
 button.pb-card:focus-visible::before {
@@ -542,7 +545,7 @@ button.pb-card:focus-visible .pb-info {
   min-height: 168px;
   border: 0;
   border-bottom: 1px solid #dedfe5;
-  border-radius: 0;
+  border-radius: var(--radius-card);
   padding: 16px 8px;
   background: color-mix(in srgb, var(--player-color) 5%, #fafafa);
   gap: 16px;
@@ -552,7 +555,7 @@ button.pb-card:focus-visible .pb-info {
   width: 112px;
   height: 136px;
   flex-basis: 112px;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: transparent;
 }
 
@@ -591,7 +594,7 @@ button.pb-card:focus-visible .pb-info {
   min-height: 0;
   align-self: stretch;
   background: #182128;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   overflow: hidden;
 }
 
@@ -662,7 +665,7 @@ button.pb-card:focus-visible .pb-info {
   align-self: stretch;
   background: #fff;
   border: 1px solid #e2e3e7;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -730,7 +733,7 @@ button.pb-card:focus-visible .pb-info {
   text-align: left;
   border: 0;
   border-bottom: 1px solid #e2e3e7;
-  border-radius: 0;
+  border-radius: var(--radius-card);
   padding: 15px 16px;
   background: #fff;
   font-weight: 400;
@@ -791,7 +794,7 @@ button.pb-card:focus-visible .pb-info {
   padding: 12px;
   margin: 12px;
   border: 1px solid #e5c4bd;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-size: 13px;
 }
 
@@ -1026,14 +1029,14 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .pb-grid .pb-card {
-  border-radius: 0;
+  border-radius: var(--radius-card);
 }
 
 .pb-grid .pb-info {
   min-height: 168px;
   border: 0;
   border-bottom: 1px solid #d6d1c9;
-  border-radius: 0;
+  border-radius: var(--radius-card);
   padding: 16px 8px;
   background: var(--page-surface);
   gap: 16px;
@@ -1043,7 +1046,7 @@ button.pb-card:focus-visible .pb-info {
   width: 112px;
   height: 136px;
   flex-basis: 112px;
-  border-radius: 10px;
+  border-radius: var(--radius-card);
   background: transparent;
 }
 

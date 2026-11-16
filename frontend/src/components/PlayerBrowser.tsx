@@ -167,7 +167,7 @@ export default function PlayerBrowser() {
               <div className="pb-stage" aria-busy={film.cutting}>
                 {film.url ? <video key={film.url} className="main-player pb-film" controls autoPlay playsInline preload="auto" src={film.url} onLoadedData={film.started} onError={film.failed} /> :
                   <div className={`pb-placeholder ${film.cutting ? 'pb-shimmer' : ''}`} role="status">
-                    {film.cutting ? 'Loading this play…' : film.error ? 'Preview unavailable' : 'Select a play to watch'}
+                    {film.cutting ? 'Loading this play…' : film.error ? 'Preview unavailable' : selected.clips === 0 ? 'No clips available for this player yet.' : 'Select a play to watch'}
                   </div>}
               </div>
               {film.error && <p role="alert" className="notice">{film.error}</p>}
@@ -230,7 +230,7 @@ export default function PlayerBrowser() {
                   ))}
                   {clips.hasMore && <li ref={endRef} className="pb-more" aria-hidden="true" />}
                 </ul>
-                {!clips.loading && !clips.loadingMore && !clips.shown.length && <p className="empty">No plays in this group.</p>}
+                {!clips.loading && !clips.loadingMore && !clips.shown.length && <p className="empty">{selected.clips === 0 ? 'No clips available for this player yet.' : 'No plays in this group.'}</p>}
               </div>
             </section>
           </div>
@@ -293,7 +293,7 @@ export default function PlayerBrowser() {
             </div>
           )}
           {library.hasMore && <div ref={playersEndRef} className="pb-more" aria-hidden="true" />}
-          {!library.loading && !library.loadingMore && !library.players.length && <p className="empty">{library.query || library.team ? 'No players match your search.' : 'No players with clips yet.'}</p>}
+          {!library.loading && !library.loadingMore && !library.players.length && <p className="empty">{library.query || library.team ? 'No players match your search.' : 'No players available yet.'}</p>}
         </>
       )}
     </>
