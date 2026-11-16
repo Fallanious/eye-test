@@ -3,15 +3,73 @@ import { usePlayerClip } from '../hooks/usePlayerClip';
 import { usePlayerClips } from '../hooks/usePlayerClips';
 import { usePlayerLibrary } from '../hooks/usePlayerLibrary';
 import type { BrowserPlayer } from '../types';
+import ClipStack from './ClipStack';
 
-const TEAM_COLOR: Record<string, string> = {
-  ATL: '#E03A3E', BOS: '#007A33', BRK: '#111111', CHI: '#CE1141', CHO: '#1D1160',
-  CLE: '#860038', DAL: '#00538C', DEN: '#0E2240', DET: '#C8102E', GSW: '#1D428A',
-  HOU: '#CE1141', IND: '#002D62', LAC: '#C8102E', LAL: '#552583', MEM: '#5D76A9',
-  MIA: '#98002E', MIL: '#00471B', MIN: '#0C2340', NOP: '#0C2340', NYK: '#006BB6',
-  OKC: '#007AC1', ORL: '#0077C0', PHI: '#006BB6', PHO: '#1D1160', POR: '#E03A3E',
-  SAC: '#5A2D81', SAS: '#1D1D1D', TOR: '#CE1141', UTA: '#002B5C', WAS: '#002B5C',
+// Away Game palettes, ordered from the nearest layer to the furthest.
+const NBA_COLORS: Record<string, readonly [string, string, string]> = {
+  PHI: ['#006BB6', '#ED174C', '#FFFFFF'],
+  BOS: ['#007A33', '#BA9653', '#FFFFFF'],
+  NYK: ['#006BB6', '#F58426', '#BEC0C2'],
+  BKN: ['#000000', '#FFFFFF', '#707271'],
+  TOR: ['#CE1141', '#000000', '#A1A1A4'],
+  CHI: ['#CE1141', '#000000', '#FFFFFF'],
+  CLE: ['#860038', '#BC945C', '#000000'],
+  DET: ['#C8102E', '#1D42BA', '#BEC0C2'],
+  IND: ['#002D62', '#FDBB30', '#BEC0C2'],
+  MIL: ['#00471B', '#EEE1C6', '#0077C0'],
+  ATL: ['#C8102E', '#FDB927', '#000000'],
+  CHA: ['#1D1160', '#00788C', '#A1A1A4'],
+  MIA: ['#98002E', '#F9A01B', '#000000'],
+  ORL: ['#0077C0', '#C4CED4', '#000000'],
+  WAS: ['#002B5C', '#E31837', '#C4CED4'],
+  DAL: ['#00538C', '#002B5E', '#B8C4CA'],
+  DEN: ['#0E2240', '#FEC524', '#8B2131'],
+  GSW: ['#1D428A', '#FFC72C', '#FFFFFF'],
+  HOU: ['#CE1141', '#000000', '#C4CED4'],
+  LAC: ['#041E42', '#C8102E', '#0072CE'],
+  LAL: ['#552583', '#FDB927', '#000000'],
+  MEM: ['#5D76A9', '#12173F', '#F5B112'],
+  MIN: ['#236192', '#00843D', '#FFFFFF'],
+  NOP: ['#0C2340', '#C8102E', '#85714D'],
+  OKC: ['#007AC1', '#EF3B24', '#FDBB30'],
+  PHX: ['#1D1160', '#E56020', '#000000'],
+  POR: ['#E03A3E', '#000000', '#FFFFFF'],
+  SAC: ['#5A2D81', '#000000', '#63727A'],
+  SAS: ['#C4CED4', '#000000', '#FFFFFF'],
+  UTA: ['#6C4C9A', '#69B3E7', '#121212'],
 };
+
+const TEAM_ALIASES: Record<string, string> = { BRK: 'BKN', CHO: 'CHA', PHO: 'PHX' };
+
+const TEAM_NAMES: Record<string, string> = {
+  ATL: 'Atlanta Hawks', BOS: 'Boston Celtics', BKN: 'Brooklyn Nets',
+  CHA: 'Charlotte Hornets', CHI: 'Chicago Bulls', CLE: 'Cleveland Cavaliers',
+  DAL: 'Dallas Mavericks', DEN: 'Denver Nuggets', DET: 'Detroit Pistons',
+  GSW: 'Golden State Warriors', HOU: 'Houston Rockets', IND: 'Indiana Pacers',
+  LAC: 'LA Clippers', LAL: 'Los Angeles Lakers', MEM: 'Memphis Grizzlies',
+  MIA: 'Miami Heat', MIL: 'Milwaukee Bucks', MIN: 'Minnesota Timberwolves',
+  NOP: 'New Orleans Pelicans', NYK: 'New York Knicks', OKC: 'Oklahoma City Thunder',
+  ORL: 'Orlando Magic', PHI: 'Philadelphia 76ers', PHX: 'Phoenix Suns',
+  POR: 'Portland Trail Blazers', SAC: 'Sacramento Kings', SAS: 'San Antonio Spurs',
+  TOR: 'Toronto Raptors', UTA: 'Utah Jazz', WAS: 'Washington Wizards',
+};
+
+function teamName(team: string) {
+  return TEAM_NAMES[TEAM_ALIASES[team] || team] || team;
+}
+
+function teamColors(team: string): readonly [string, string, string] {
+  return NBA_COLORS[TEAM_ALIASES[team] || team] || ['#242426', '#A68168', '#D8CEC5'];
+}
+
+function cardColors(team: string): CSSProperties {
+  const [primary, middle, back] = teamColors(team);
+  return {
+    '--card-primary': primary,
+    '--card-middle': middle,
+    '--card-back': back,
+  } as CSSProperties;
+}
 
 function countLabel(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
@@ -37,9 +95,9 @@ function PlayerCard({ player, broken, onBroken }: {
   broken: boolean;
   onBroken: () => void;
 }) {
-  const color = player.team ? TEAM_COLOR[player.team] || '#242426' : undefined;
+  const color = player.team ? teamColors(player.team)[0] : undefined;
   return (
-    <div className="pb-info" style={{ '--player-color': color || '#242426', borderColor: color } as CSSProperties}>
+    <div className="pb-info" style={{ '--player-color': color || '#242426' } as CSSProperties}>
       <div className="pb-portrait">
         {(!player.headshot_url || broken) && <span className="pb-initials">{player.full_name.split(' ').slice(0, 2).map(name => name[0]).join('')}</span>}
         {player.headshot_url && !broken && (
@@ -67,7 +125,7 @@ export default function PlayerBrowser() {
   const endRef = useRef<HTMLLIElement>(null);
   const playersEndRef = useRef<HTMLDivElement>(null);
   const selected = clips.selected;
-  const playerColor = selected?.team ? TEAM_COLOR[selected.team] || '#242426' : '#242426';
+  const playerColor = selected?.team ? teamColors(selected.team)[0] : '#242426';
   const archive = library.season ? `${library.season} archive` : '';
   const markBroken = (id: number) => setBroken(prev => ({ ...prev, [id]: true }));
   const filters = [{ role: '', label: 'All plays' }, ...clips.roles];
@@ -185,16 +243,30 @@ export default function PlayerBrowser() {
                 <h1>Player Library</h1>
                 {archive && <span>{archive}</span>}
               </div>
-              <p>Find a player. Find clips.</p>
+              <p>Find a player. Get straight to the film.</p>
             </div>
           </header>
           <div className="toolbar pb-toolbar">
             <input aria-label="Search players" placeholder="Search players…" value={library.query} onChange={event => library.setQuery(event.target.value)} />
-            <select aria-label="Filter by team" value={library.team} onChange={event => library.setTeam(event.target.value)}>
-              <option value="">All teams</option>
-              {library.teams.map(code => <option key={code} value={code}>{code}</option>)}
-            </select>
           </div>
+          <div className="pb-team-tabs" role="group" aria-label="Browse by team">
+            <button className="pb-team-tab pb-card" style={cardColors('')} aria-pressed={!library.team} onClick={() => library.setTeam('')}>
+              <span className="pb-card-layer" aria-hidden="true" />
+              <span className="pb-info">All</span>
+            </button>
+            {library.teams.map(code => (
+              <button key={code} className="pb-team-tab pb-card" style={cardColors(code)} aria-pressed={library.team === code} aria-label={teamName(code)} title={teamName(code)} onClick={() => library.setTeam(code)}>
+                <span className="pb-card-layer" aria-hidden="true" />
+                <span className="pb-info">{TEAM_ALIASES[code] || code}</span>
+              </button>
+            ))}
+          </div>
+          {library.team && <div className="pb-team-heading">
+            <ClipStack className="pb-team-mark" colors={teamColors(library.team)} />
+            <h2>{teamName(library.team)}</h2>
+            <span className="pb-team-rule" />
+            <span role="status">{library.loading ? 'Loading…' : countLabel(library.total, 'player', 'players')}</span>
+          </div>}
           {library.error && <p role="alert" className="notice">{library.error}</p>}
           {library.loading && !library.players.length ? (
             <div className="pb-grid" aria-hidden="true">
@@ -203,7 +275,8 @@ export default function PlayerBrowser() {
           ) : (
             <div className="pb-grid">
               {library.players.map(player => (
-                <button className="pb-card" key={player.id} onClick={() => { window.scrollTo({ top: 0 }); void clips.open(player); }}>
+                <button className="pb-card" style={cardColors(player.team)} key={player.id} onClick={() => { window.scrollTo({ top: 0 }); void clips.open(player); }}>
+                  <span className="pb-card-layer" aria-hidden="true" />
                   <PlayerCard
                     player={player}
                     broken={!!broken[player.id]}
