@@ -67,6 +67,7 @@ export default function PlayerBrowser() {
   const endRef = useRef<HTMLLIElement>(null);
   const playersEndRef = useRef<HTMLDivElement>(null);
   const selected = clips.selected;
+  const playerColor = selected?.team ? TEAM_COLOR[selected.team] || '#242426' : '#242426';
   const archive = library.season ? `${library.season} archive` : '';
   const markBroken = (id: number) => setBroken(prev => ({ ...prev, [id]: true }));
   const filters = [{ role: '', label: 'All plays' }, ...clips.roles];
@@ -102,7 +103,7 @@ export default function PlayerBrowser() {
           <div className="pb-card pb-selected" aria-label={`${selected.full_name} selected player`}>
             <PlayerCard player={selected} broken={!!broken[selected.id]} onBroken={() => markBroken(selected.id)} />
           </div>
-          <div className="pb-session">
+          <div className="pb-session" style={{ '--player-color': playerColor } as CSSProperties}>
             <section className="pb-preview" aria-label="Film preview">
               <div className="pb-stage" aria-busy={film.cutting}>
                 {film.url ? <video key={film.url} className="main-player pb-film" controls autoPlay playsInline preload="auto" src={film.url} onLoadedData={film.started} onError={film.failed} /> :

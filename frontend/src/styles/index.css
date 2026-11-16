@@ -539,13 +539,14 @@ button.pb-card:hover .pb-info {
   font-variant-numeric: tabular-nums;
 }
 
-.pb-row:hover {
-  background: #f5f6f8;
+.pb-plays .pb-row:hover,
+.pb-plays .pb-row:focus-visible,
+.pb-plays .pb-row.current {
+  background: color-mix(in srgb, var(--player-color) 5%, #fafafa);
 }
 
-.pb-row.current {
-  background: #eaf1fa;
-  box-shadow: inset 3px 0 #397cbd;
+.pb-plays .pb-row.current {
+  box-shadow: inset 3px 0 var(--player-color);
 }
 
 .pb-more {
