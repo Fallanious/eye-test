@@ -207,6 +207,10 @@ main {
   background: #f5f2ec;
 }
 
+.pb-toolbar input:focus-visible {
+  outline: none;
+}
+
 .pb-team-tabs {
   display: flex;
   flex-wrap: wrap;
