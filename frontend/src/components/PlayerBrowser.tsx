@@ -158,7 +158,8 @@ export default function PlayerBrowser() {
       {selected ? (
         <>
           <button className="pb-back" onClick={() => { film.clear(); clips.close(); }}>Back</button>
-          <div className="pb-card pb-selected" aria-label={`${selected.full_name} selected player`}>
+          <div className="pb-card pb-selected" style={cardColors(selected.team)} aria-label={`${selected.full_name} selected player`}>
+            <span className="pb-card-layer" aria-hidden="true" />
             <PlayerCard player={selected} broken={!!broken[selected.id]} onBroken={() => markBroken(selected.id)} />
           </div>
           <div className="pb-session" style={{ '--player-color': playerColor } as CSSProperties}>

@@ -311,7 +311,7 @@ main {
   align-items: flex-end;
   justify-content: center;
   overflow: hidden;
-  background: #f0f1f4;
+  background: transparent;
   border-radius: 6px;
 }
 
@@ -343,13 +343,16 @@ main {
   background: #fff;
 }
 
-button.pb-card {
+button.pb-card,
+.pb-selected {
   position: relative;
   isolation: isolate;
 }
 
 button.pb-card::before,
 button.pb-card::after,
+.pb-selected::before,
+.pb-selected::after,
 .pb-card-layer {
   content: '';
   position: absolute;
@@ -361,7 +364,8 @@ button.pb-card::after,
   z-index: 0;
 }
 
-button.pb-card::after {
+button.pb-card::after,
+.pb-selected::after {
   background: var(--card-middle);
   z-index: 1;
 }
@@ -487,8 +491,23 @@ button.pb-card:focus-visible .pb-info {
   border: 0;
   background: transparent;
   padding: 0;
-  margin-bottom: 22px;
+  margin: 8px 0 36px 18px;
   max-width: 520px;
+}
+
+.pb-selected::before {
+  transform: translate(-18px, 14px);
+  opacity: 1;
+}
+
+.pb-selected::after {
+  transform: translate(-12px, 8px);
+  opacity: 1;
+}
+
+.pb-selected .pb-card-layer {
+  transform: translate(-6px, 2px);
+  opacity: 1;
 }
 
 .pb-copy {
@@ -497,6 +516,9 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .pb-selected .pb-info {
+  z-index: 3;
+  transform: translateY(-4px);
+  box-shadow: 0 6px 12px rgba(23, 23, 25, .1);
   min-height: 168px;
   border: 0;
   border-bottom: 1px solid #dedfe5;
@@ -511,7 +533,7 @@ button.pb-card:focus-visible .pb-info {
   height: 136px;
   flex-basis: 112px;
   border-radius: 10px;
-  background: #eef0f3;
+  background: transparent;
 }
 
 .pb-selected .pb-initials {
@@ -1002,7 +1024,7 @@ button.pb-card:focus-visible .pb-info {
   height: 136px;
   flex-basis: 112px;
   border-radius: 10px;
-  background: #eef0f3;
+  background: transparent;
 }
 
 .pb-grid .pb-initials {
