@@ -77,7 +77,7 @@ function countLabel(count: number, one: string, many: string) {
 
 function PlayerSkeleton({ index }: { index: number }) {
   return (
-    <div className="pb-card pb-skeleton-card" style={{ '--shimmer-delay': `${(index % 3) * 0.16}s` } as CSSProperties}>
+    <div className="pb-card pb-skeleton-card" style={{ '--loading-delay': `${(index % 3) * 0.16}s` } as CSSProperties}>
       <div className="pb-info">
         <div className="pb-portrait pb-skeleton" />
         <div className="pb-copy">
@@ -166,7 +166,7 @@ export default function PlayerBrowser() {
             <section className="pb-preview" aria-label="Film preview">
               <div className="pb-stage" aria-busy={film.cutting}>
                 {film.url ? <video key={film.url} className="main-player pb-film" controls autoPlay playsInline preload="auto" src={film.url} onLoadedData={film.started} onError={film.failed} /> :
-                  <div className={`pb-placeholder ${film.cutting ? 'pb-shimmer' : ''}`} role="status">
+                  <div className={`pb-placeholder ${film.cutting ? 'pb-loading-fade' : ''}`} role="status">
                     {film.cutting ? 'Loading this play…' : film.error ? 'Preview unavailable' : selected.clips === 0 ? 'No clips available for this player yet.' : 'Select a play to watch'}
                   </div>}
               </div>
@@ -190,7 +190,7 @@ export default function PlayerBrowser() {
                 <ul className="pb-list">
                   {clips.loading && !clips.shown.length && Array.from({ length: 5 }, (_, index) => (
                     <li key={`loading-${index}`} aria-hidden="true">
-                      <div className="pb-row pb-skeleton-row" style={{ '--shimmer-delay': `${index * 0.12}s` } as CSSProperties}>
+                      <div className="pb-row pb-skeleton-row" style={{ '--loading-delay': `${index * 0.12}s` } as CSSProperties}>
                         <div>
                           <div className="pb-skeleton pb-skeleton-line" />
                           <div className="pb-skeleton pb-skeleton-line short" />
@@ -218,7 +218,7 @@ export default function PlayerBrowser() {
                   ))}
                   {clips.loadingMore && Array.from({ length: 2 }, (_, index) => (
                     <li key={`more-${index}`} aria-hidden="true">
-                      <div className="pb-row pb-skeleton-row" style={{ '--shimmer-delay': `${index * 0.12}s` } as CSSProperties}>
+                      <div className="pb-row pb-skeleton-row" style={{ '--loading-delay': `${index * 0.12}s` } as CSSProperties}>
                         <div>
                           <div className="pb-skeleton pb-skeleton-line" />
                           <div className="pb-skeleton pb-skeleton-line short" />

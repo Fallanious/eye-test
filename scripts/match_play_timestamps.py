@@ -65,7 +65,15 @@ def extract_frame_at_time(video_path, time_seconds, output_path, crop=None):
         x, y, w, h = crop
         cmd.extend(['-vf', f'crop={w}:{h}:{x}:{y}'])
     cmd.extend(['-q:v', '2', output_path, '-y'])
-    subprocess.run(cmd, check=True, stderr=subprocess.PIPE)
+    try:
+        subprocess.run(cmd, check=True, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as exc:
+        detail = exc.stderr or b''
+        if isinstance(detail, bytes):
+            detail = detail.decode('utf-8', errors='replace')
+        raise RuntimeError(
+            f'Frame extraction failed at {time_seconds}s (ffmpeg exit {exc.returncode}):\n{detail[-4000:]}'
+        ) from exc
 
 
 FRAME_READ_TIMEOUT_S = 90

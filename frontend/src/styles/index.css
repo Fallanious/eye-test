@@ -808,7 +808,7 @@ button.pb-card:focus-visible .pb-info {
   font-size: 13px;
 }
 
-.pb-shimmer,
+.pb-loading-fade,
 .pb-skeleton {
   position: relative;
   overflow: hidden;
@@ -830,28 +830,10 @@ button.pb-card:focus-visible .pb-info {
   margin-top: 9px;
 }
 
-.pb-shimmer::after,
-.pb-skeleton::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  transform: translateX(-100%);
-  animation: pb-shimmer 2.2s ease-in-out infinite;
-  animation-delay: var(--shimmer-delay, 0s);
-}
-
-.pb-skeleton::after {
-  background: linear-gradient(105deg,
-      transparent 28%,
-      rgba(77, 65, 52, .08) 44%,
-      rgba(77, 65, 52, .22) 50%,
-      rgba(77, 65, 52, .08) 56%,
-      transparent 72%);
-}
-
-.pb-shimmer::after {
-  background: linear-gradient(100deg, transparent 32%, rgba(255, 255, 255, .2) 50%, transparent 68%);
+.pb-loading-fade,
+.pb-skeleton {
+  animation: pb-loading-fade 2.2s ease-in-out infinite;
+  animation-delay: var(--loading-delay, 0s);
 }
 
 .pb-skeleton-card {
@@ -888,9 +870,12 @@ button.pb-card:focus-visible .pb-info {
   width: 86%;
 }
 
-@keyframes pb-shimmer {
-  to {
-    transform: translateX(100%);
+@keyframes pb-loading-fade {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: .35;
   }
 }
 
@@ -1012,8 +997,8 @@ button.pb-card:focus-visible .pb-info {
 
 @media(prefers-reduced-motion:reduce) {
 
-  .pb-shimmer::after,
-  .pb-skeleton::after {
+  .pb-loading-fade,
+  .pb-skeleton {
     animation: none;
   }
 
