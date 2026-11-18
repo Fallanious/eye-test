@@ -28,7 +28,7 @@ def client(postgres_url, tmp_path):
 
 def test_team_game_counts_and_missing_teams(client):
     teams = client.get('/api/teams').json['teams']
-    assert len(teams) == 2
+    assert {team['abbr']: team['games'] for team in teams} == {'FIC': 1, 'QAF': 1, 'OUT': 0}
     games = client.get('/api/teams/1/games').json['games']
     assert games[0]['team_clips'] == 35
     assert games[0]['clips'] == 65

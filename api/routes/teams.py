@@ -59,8 +59,8 @@ def list_teams():
     with conn:
         rows = conn.execute('''
             SELECT t.id, t.abbr, t.city, t.name, COUNT(DISTINCT g.id)
-            FROM teams t JOIN games g ON t.id IN (g.home_team_id, g.away_team_id)
-            WHERE EXISTS (SELECT 1 FROM clips c WHERE c.game_id = g.id)
+            FROM teams t
+            LEFT JOIN games g ON t.id IN (g.home_team_id, g.away_team_id)
             GROUP BY t.id ORDER BY t.city, t.name
         ''').fetchall()
     return jsonify(teams=[dict(id=r[0], abbr=r[1], name=f'{r[2]} {r[3]}', games=r[4]) for r in rows])

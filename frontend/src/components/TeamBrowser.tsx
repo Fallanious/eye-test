@@ -37,7 +37,7 @@ export default function TeamBrowser() {
 
 
   return <section aria-label="Team film library">
-    <header className="tb-heading"><div><h1>Teams</h1><p>Pick a team. Find the game. Study the plays.</p></div></header>
+    <header className="tb-heading"><div><h1>Teams</h1><p>Pick a team, a game, and browse clips.</p></div></header>
     <div className="tb-layout">
       <aside className="tb-team-rail" aria-label="Choose a team">
         {teams.map(item => <button key={item.id} className="pb-card tb-team-card" style={teamStyle(item)} aria-pressed={item.id === team.id}
