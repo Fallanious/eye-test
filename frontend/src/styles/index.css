@@ -1237,6 +1237,19 @@ button.pb-card:focus-visible .pb-info {
   color: #62656e;
 }
 
+.tb-team-title,
+.tb-game-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tb-team-title .pb-team-mark {
+  width: 36px;
+  height: 36px;
+}
+
 .tb-game-list {
   display: flex;
   flex-direction: column;
@@ -1250,17 +1263,18 @@ button.pb-card:focus-visible .pb-info {
   gap: 16px;
   width: 100%;
   padding: 22px;
-  border: 1px solid #cbc6bd;
-  background: #faf8f4;
+  border: 0;
+  border-bottom: 1px solid #cbc6bd;
+  background: var(--page-surface);
   text-align: left;
-  border-radius: var(--radius-card);
+  border-radius: 0;
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
 button.tb-game-card:hover,
 button.tb-game-card:focus-visible {
   transform: translateY(-4px);
-  background: #faf8f4;
+  background: var(--page-surface);
   box-shadow: 0 8px 18px #17171912;
 }
 
@@ -1315,10 +1329,18 @@ button.tb-game-card:focus-visible {
 }
 
 .tb-categories {
+  gap: 8px;
   margin-bottom: 22px;
 }
 
+.tb-categories button {
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 14px;
+}
+
 .tb-film-session {
+  --player-color: var(--card-primary);
   grid-template-rows: auto;
 }
 

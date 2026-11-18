@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { fetchTeams, fetchTeamGames, fetchGameClips, gameClipUrl } from '../api';
 import type { BrowserTeam, TeamGame, GameClip, GameClipPage } from '../types';
-import { cardColors, teamName } from '../teamTheme';
+import { cardColors, teamName, teamColors } from '../teamTheme';
+import ClipStack from './ClipStack';
 
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not load film.'; }
 function dateLabel(date: string) { return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -81,11 +82,11 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
 
 
   return <section className="tb-games" aria-label={`${teamName(team.abbr)} games`}>
-    <div className="tb-games-heading"><h2>{teamName(team.abbr)}</h2><span>{team.games} games with film</span></div>
+    <div className="tb-games-heading"><div className="tb-team-title"><ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} /><h2>{teamName(team.abbr)}</h2></div><span>{team.games} games with film</span></div>
     {error && <div role="alert" className="notice">{error} {!games.length && <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button>}</div>}
     <div className="tb-game-list">
       {games.map(game => <button className="tb-game-card" key={game.id} onClick={() => onSelect(game)}>
-        <span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span>
+        <span className="tb-game-identity"><ClipStack className="pb-team-mark" colors={teamColors(game.home === team.abbr ? game.away : game.home)} /><span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span></span>
         <span className="tb-game-count">{game.team_clips} team clips<small>{game.clips} in game</small></span>
       </button>)}
       {loading && Array.from({ length: 3 }, (_, i) => <div key={i} className="tb-game-card tb-game-skeleton" aria-hidden="true"><span className="pb-skeleton pb-skeleton-line" /><span className="pb-skeleton pb-skeleton-line short" /></div>)}
