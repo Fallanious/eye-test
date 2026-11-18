@@ -275,7 +275,7 @@ def parse_scoreboard_response(response_text):
     return None
 
 
-GROUP_WINDOW_S = 5
+GROUP_WINDOW_S = 3
 
 
 def time_to_seconds(time_str):

@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
 
 :root {
-  --radius-card: 12px;
-  --radius-control: 10px;
+  --radius-card: 10px;
+  --radius-control: 8px;
   --page-surface: #e9e5de;
   font-family: 'DM Sans', sans-serif;
   color: #202023;
@@ -217,7 +217,7 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 24px;
-  padding: 8px 0 20px 18px;
+  padding: 8px 0 16px 14px;
   margin: 0 0 20px;
 }
 
@@ -244,6 +244,21 @@ main {
   border-bottom: 3px solid currentColor;
   padding-bottom: 8px;
   background: #f5f2ec;
+}
+
+.pb-team-tab.pb-card:focus-visible::before,
+.pb-team-tab.pb-card:hover::before {
+  transform: translate(-12px, 9px);
+}
+
+.pb-team-tab.pb-card:focus-visible::after,
+.pb-team-tab.pb-card:hover::after {
+  transform: translate(-8px, 5px);
+}
+
+.pb-team-tab.pb-card:focus-visible .pb-card-layer,
+.pb-team-tab.pb-card:hover .pb-card-layer {
+  transform: translate(-4px, 1px);
 }
 
 .pb-team-mark {
@@ -334,7 +349,7 @@ main {
   justify-content: center;
   overflow: hidden;
   background: transparent;
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
 .pb-portrait img {
@@ -480,7 +495,7 @@ button.pb-card:focus-visible .pb-info {
   font-size: 9px;
   letter-spacing: .5px;
   padding: 3px 4px;
-  border-radius: 3px;
+  border-radius: 2px;
   color: white;
 }
 
@@ -820,7 +835,7 @@ button.pb-card:focus-visible .pb-info {
 
 .pb-skeleton-line {
   height: 13px;
-  border-radius: 5px;
+  border-radius: 4px;
   width: 100%;
 }
 
