@@ -428,6 +428,11 @@ def serve_player_clip(player_id, clip_id):
             """,
             (player_id, clip_id),
         ).fetchone()
+    return serve_clip_row(row, clip_id)
+
+
+def serve_clip_row(row, clip_id):
+    """Stream one validated clip, shared by player and game browsing."""
     if row is None:
         return jsonify({"error": "Clip not found."}), 404
     if not row[2]:

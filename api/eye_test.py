@@ -10,6 +10,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from public_limits import RateLimits, RedisRateLimits, LimiterUnavailable
 from routes.players import bp
+from routes.teams import bp as teams_bp
 
 
 def _origins(raw):
@@ -44,6 +45,7 @@ def create_app(overrides=None):
                else RateLimits(app.config['RATE_LIMIT_PATH']))
     app.extensions['rate_limiter'] = limiter
     app.register_blueprint(bp)
+    app.register_blueprint(teams_bp)
 
     @app.before_request
     def cors_preflight():
@@ -66,7 +68,7 @@ def create_app(overrides=None):
             return None
         identity = request.remote_addr or 'unknown'
         budgets = [(f'browse:{identity}', app.config['BROWSE_PER_MINUTE'])]
-        if request.endpoint == 'players.serve_player_clip':
+        if request.endpoint in ('players.serve_player_clip', 'teams.serve_game_clip'):
             budgets += [(f'play:{identity}', app.config['PLAYBACK_PER_MINUTE']),
                         ('play:global', app.config['GLOBAL_PLAYBACK_PER_MINUTE'])]
         try:

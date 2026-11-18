@@ -1,4 +1,4 @@
-import type { PlayerLibrary, PlayerClipPage } from "./types";
+import type { PlayerLibrary, PlayerClipPage, TeamGame, BrowserTeam, GameClipPage } from "./types";
 const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, init);
@@ -28,3 +28,18 @@ export function playerClipUrl(playerId: number, clipId: number): string {
   return `${BASE}/api/players/${playerId}/clips/${clipId}`;
 }
 
+
+export function fetchTeams(signal?: AbortSignal) {
+  return fetchJSON<{ teams: BrowserTeam[] }>('/api/teams', { signal });
+}
+export function fetchTeamGames(teamId: number, cursor?: number | null, signal?: AbortSignal) {
+  return fetchJSON<{ games: TeamGame[]; cursor: number | null }>(`/api/teams/${teamId}/games${cursor ? `?cursor=${cursor}` : ''}`, { signal });
+}
+export function fetchGameClips(teamId: number, gameId: number, scope: string, categories: string[], cursor?: number | null, signal?: AbortSignal) {
+  const params = new URLSearchParams({ scope, categories: categories.join(',') });
+  if (cursor) params.set('cursor', String(cursor));
+  return fetchJSON<GameClipPage>(`/api/teams/${teamId}/games/${gameId}/clips?${params}`, { signal });
+}
+export function gameClipUrl(teamId: number, gameId: number, clipId: number) {
+  return `${BASE}/api/teams/${teamId}/games/${gameId}/clips/${clipId}`;
+}

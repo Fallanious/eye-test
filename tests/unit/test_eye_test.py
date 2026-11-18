@@ -27,7 +27,10 @@ def test_only_public_routes_are_registered(tmp_path):
     app = make_app(tmp_path)
     endpoints = {rule.rule for rule in app.url_map.iter_rules() if rule.rule.startswith('/api/')}
     assert endpoints == {'/api/players', '/api/players/<int:player_id>/clips',
-                         '/api/players/<int:player_id>/clips/<int:clip_id>'}
+                         '/api/players/<int:player_id>/clips/<int:clip_id>',
+                         '/api/teams', '/api/teams/<int:team_id>/games',
+                         '/api/teams/<int:team_id>/games/<int:game_id>/clips',
+                         '/api/teams/<int:team_id>/games/<int:game_id>/clips/<int:clip_id>'}
     client = app.test_client()
     for path in ['/api/jobs', '/api/upload', '/api/download', '/api/generate', '/api/film/game.mkv']:
         assert client.get(path).status_code == 404

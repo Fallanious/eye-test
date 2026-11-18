@@ -46,3 +46,8 @@ export interface PlayerClip {
   season: string;
   matchup: string;
 }
+
+export interface BrowserTeam { id: number; abbr: string; name: string; games: number }
+export interface TeamGame { id: number; date: string; season: string; home: string; away: string; clips: number; team_clips: number }
+export interface GameClip { id: number; description: string; period: number; game_clock: string; duration_label: string; categories: string[] }
+export interface GameClipPage { clips: GameClip[]; total: number; categories: { key: string; label: string; count: number }[]; cursor: number | null }
