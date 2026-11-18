@@ -5,6 +5,7 @@ import { cardColors, teamName } from '../teamTheme';
 
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not load film.'; }
 function dateLabel(date: string) { return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
+function matchupLabel(game: TeamGame, team: BrowserTeam) { return game.home === team.abbr ? `vs ${teamName(game.away)}` : `at ${teamName(game.home)}`; }
 function periodLabel(period: number) { return period <= 4 ? `Q${period}` : period === 5 ? 'OT' : `${period - 4}OT`; }
 
 // White and pale team colors need darkening when used as small text on paper.
@@ -84,7 +85,7 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
     {error && <div role="alert" className="notice">{error} {!games.length && <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button>}</div>}
     <div className="tb-game-list">
       {games.map(game => <button className="tb-game-card" key={game.id} onClick={() => onSelect(game)}>
-        <span><strong>{game.away} at {game.home}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span>
+        <span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span>
         <span className="tb-game-count">{game.team_clips} team clips<small>{game.clips} in game</small></span>
       </button>)}
       {loading && Array.from({ length: 3 }, (_, i) => <div key={i} className="tb-game-card tb-game-skeleton" aria-hidden="true"><span className="pb-skeleton pb-skeleton-line" /><span className="pb-skeleton pb-skeleton-line short" /></div>)}
@@ -98,7 +99,6 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
 const CATEGORY_LABELS: Record<string, string> = { three_pointer: 'Three-pointers', dunk: 'Dunks', layup: 'Layups', shot: 'Shots', rebound: 'Rebounds', steal: 'Steals', block: 'Blocks', assist: 'Assists', foul: 'Fouls', turnover: 'Turnovers', free_throw: 'Free throws' };
 
 function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; onBack: () => void }) {
-  const [scope, setScope] = useState('team');
   const [categories, setCategories] = useState<string[]>([]);
   const [active, setActive] = useState<GameClip | null>(null);
   const [playAttempt, setPlayAttempt] = useState(0);
@@ -107,8 +107,8 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
   function play(clip: GameClip) { setPlayAttempt(n => n + 1); setActive(clip); setLoading(true); setError(''); }
   return <section className="tb-film-page" style={teamStyle(team)} aria-label="Game film">
     <button className="pb-back" onClick={onBack}>All {team.abbr} games</button>
-    <div className="tb-heading"><h1>{game.away} at {game.home}</h1><p>{dateLabel(game.date)} · {game.season}</p></div>
-    <div className="tb-scope"><select aria-label="Clip team scope" value={scope} onChange={e => setScope(e.target.value)}><option value="team">{team.abbr} plays only</option><option value="both">Both teams</option></select><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
+    <div className="tb-heading"><h1>{matchupLabel(game, team)}</h1><p>{dateLabel(game.date)} · {game.season}</p></div>
+    <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
     <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>All plays</button>
       {Object.entries(CATEGORY_LABELS).map(([key, label]) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
     </div>
@@ -121,12 +121,12 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
         {error && <p className="notice" role="alert">{error} <button onClick={() => setActive(null)}>Clear preview</button></p>}
         {active && <div className="pb-now"><h2>{active.description}</h2><p>{periodLabel(active.period)} · {active.game_clock} · {active.duration_label}</p></div>}
       </section>
-      <GameClipList key={`${scope}:${categories.join(',')}`} team={team} game={game} scope={scope} categories={categories} active={active} onPlay={play} />
+      <GameClipList key={categories.join(',')} team={team} game={game} categories={categories} active={active} onPlay={play} />
     </div>
   </section>;
 }
 
-function GameClipList({ team, game, scope, categories, active, onPlay }: { team: BrowserTeam; game: TeamGame; scope: string; categories: string[]; active: GameClip | null; onPlay: (clip: GameClip) => void }) {
+function GameClipList({ team, game, categories, active, onPlay }: { team: BrowserTeam; game: TeamGame; categories: string[]; active: GameClip | null; onPlay: (clip: GameClip) => void }) {
   const [page, setPage] = useState<GameClipPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -137,16 +137,16 @@ function GameClipList({ team, game, scope, categories, active, onPlay }: { team:
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
-    fetchGameClips(team.id, game.id, scope, categoryKey.split(',').filter(Boolean), null, controller.signal)
+    fetchGameClips(team.id, game.id, categoryKey.split(',').filter(Boolean), null, controller.signal)
       .then(data => { setPage(data); setError(''); })
       .catch(err => { if (!controller.signal.aborted) setError(message(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { alive.current = false; controller.abort(); };
-  }, [team.id, game.id, scope, categoryKey, attempt]);
+  }, [team.id, game.id, categoryKey, attempt]);
   async function more() {
     if (!page?.cursor || busy.current) return;
     busy.current = true; setLoading(true); setError('');
-    try { const data = await fetchGameClips(team.id, game.id, scope, categories, page.cursor); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
+    try { const data = await fetchGameClips(team.id, game.id, categories, page.cursor); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
     catch (err) { if (alive.current) setError(message(err)); }
     finally { busy.current = false; if (alive.current) setLoading(false); }
   }

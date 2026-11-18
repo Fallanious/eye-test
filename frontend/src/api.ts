@@ -35,8 +35,8 @@ export function fetchTeams(signal?: AbortSignal) {
 export function fetchTeamGames(teamId: number, cursor?: number | null, signal?: AbortSignal) {
   return fetchJSON<{ games: TeamGame[]; cursor: number | null }>(`/api/teams/${teamId}/games${cursor ? `?cursor=${cursor}` : ''}`, { signal });
 }
-export function fetchGameClips(teamId: number, gameId: number, scope: string, categories: string[], cursor?: number | null, signal?: AbortSignal) {
-  const params = new URLSearchParams({ scope, categories: categories.join(',') });
+export function fetchGameClips(teamId: number, gameId: number, categories: string[], cursor?: number | null, signal?: AbortSignal) {
+  const params = new URLSearchParams({ scope: 'team', categories: categories.join(',') });
   if (cursor) params.set('cursor', String(cursor));
   return fetchJSON<GameClipPage>(`/api/teams/${teamId}/games/${gameId}/clips?${params}`, { signal });
 }
