@@ -1,7 +1,14 @@
 """Team/game browsing using the existing film and player-link catalog."""
-from flask import Blueprint, jsonify, request
+import os
 
-from routes.players import _db_params, _open, clock_label, duration_label, serve_clip_row
+from flask import Blueprint, jsonify, request
+from sqlalchemy import func, or_, select, text
+from sqlalchemy.orm import with_expression
+
+from dataclass.games import Game
+from dataclass.teams import Team
+from routes.engine import open_session
+from routes.players import clock_label, duration_label, serve_clip_row
 from utils.labels import extract_attributes
 
 bp = Blueprint('teams', __name__)
@@ -13,25 +20,25 @@ CATEGORIES = {
 }
 # Older imports omit clips.team_id. Count a linked player's involvement rather
 # than guessing a team from a player's abbreviated name in the description.
-TEAM_CLIP = """(c.team_id = %s OR (c.team_id IS NULL AND EXISTS (
+TEAM_CLIP = """(c.team_id = :team_id OR (c.team_id IS NULL AND EXISTS (
     SELECT 1 FROM clip_players cp JOIN players p ON p.id = cp.player_id
-    WHERE cp.clip_id = c.id AND p.team_id = %s)))"""
+    WHERE cp.clip_id = c.id AND p.team_id = :team_id)))"""
 
 
 def connect():
-    params, error = _db_params()
-    if error:
-        return None, error
-    conn, error = _open(params)
-    if error:
-        return None, error
+    """Open a read-only session. Callers close it with a `with` block."""
+    if not os.environ.get("DATABASE_URL_SQLALCHEMY"):
+        return None, (jsonify(error="Player library is unavailable."), 503)
+    session = None
     try:
-        conn.execute('SET TRANSACTION READ ONLY')
-        conn.execute("SET LOCAL statement_timeout = '8s'")
+        session = open_session()
+        session.execute(text("SET TRANSACTION READ ONLY"))
+        session.execute(text("SET LOCAL statement_timeout = '8s'"))
     except Exception:
-        conn.close()
-        raise
-    return conn, None
+        if session is not None:
+            session.close()
+        return None, (jsonify(error="Database connection unavailable."), 503)
+    return session, None
 
 
 def cursor_value():
@@ -53,17 +60,19 @@ def clip_categories(description, action, subtype, roles):
 
 @bp.get('/api/teams')
 def list_teams():
-    conn, error = connect()
+    session, error = connect()
     if error:
         return error
-    with conn:
-        rows = conn.execute('''
-            SELECT t.id, t.abbr, t.city, t.name, COUNT(DISTINCT g.id)
-            FROM teams t
-            LEFT JOIN games g ON t.id IN (g.home_team_id, g.away_team_id)
-            GROUP BY t.id ORDER BY t.city, t.name
-        ''').fetchall()
-    return jsonify(teams=[dict(id=r[0], abbr=r[1], name=f'{r[2]} {r[3]}', games=r[4]) for r in rows])
+    statement = (
+        select(Team)
+        .outerjoin(Game, or_(Game.home_team_id == Team.id, Game.away_team_id == Team.id))
+        .options(with_expression(Team.games, func.count(Game.id.distinct())))
+        .group_by(Team.id)
+        .order_by(Team.city, Team.name)
+    )
+    with session:
+        teams = session.scalars(statement).all()
+        return jsonify(teams=teams)
 
 
 @bp.get('/api/teams/<int:team_id>/games')
@@ -72,28 +81,34 @@ def list_games(team_id):
         cursor = cursor_value()
     except ValueError:
         return jsonify(error='Invalid game cursor.'), 400
-    conn, error = connect()
+    session, error = connect()
     if error:
         return error
-    with conn:
-        if not conn.execute('SELECT id FROM teams WHERE id = %s', (team_id,)).fetchone():
+    with session:
+        if not session.execute(text('SELECT id FROM teams WHERE id = :team_id'), {'team_id': team_id}).first():
             return jsonify(error='Team not found.'), 404
         mark = None
         if cursor:
-            mark = conn.execute('''SELECT game_date, id FROM games
-                WHERE id = %s AND %s IN (home_team_id, away_team_id)''', (cursor, team_id)).fetchone()
+            mark = session.execute(text('''SELECT game_date, id FROM games
+                WHERE id = :cursor AND :team_id IN (home_team_id, away_team_id)'''),
+                {'cursor': cursor, 'team_id': team_id}).first()
             if mark is None:
                 return jsonify(error='Cursor game not found.'), 404
-        after = 'AND (g.game_date, g.id) < (%s, %s)' if mark else ''
-        rows = conn.execute(f'''
+        params = {'team_id': team_id}
+        after = ''
+        if mark:
+            after = 'AND (g.game_date, g.id) < (:mark_date, :mark_id)'
+            params['mark_date'] = mark[0]
+            params['mark_id'] = mark[1]
+        rows = session.execute(text(f'''
             SELECT g.id, g.game_date, g.season, ht.abbr, at.abbr,
                 COUNT(c.id), COUNT(c.id) FILTER (WHERE {TEAM_CLIP})
             FROM games g JOIN teams ht ON ht.id = g.home_team_id
             JOIN teams at ON at.id = g.away_team_id JOIN clips c ON c.game_id = g.id
-            WHERE %s IN (g.home_team_id, g.away_team_id) {after}
+            WHERE :team_id IN (g.home_team_id, g.away_team_id) {after}
             GROUP BY g.id, ht.abbr, at.abbr
             ORDER BY g.game_date DESC, g.id DESC LIMIT 25
-        ''', [team_id, team_id, team_id, *(mark or [])]).fetchall()
+        '''), params).all()
     return jsonify(games=[dict(id=r[0], date=r[1].isoformat(), season=r[2], home=r[3], away=r[4],
                                clips=r[5], team_clips=r[6]) for r in rows[:24]],
                    cursor=rows[23][0] if len(rows) > 24 else None)
@@ -109,21 +124,26 @@ def list_game_clips(team_id, game_id):
     categories = set(filter(None, request.args.get('categories', '').split(',')))
     if scope not in ('team', 'both') or categories - CATEGORIES.keys():
         return jsonify(error='Invalid clip filters.'), 400
-    conn, error = connect()
+    session, error = connect()
     if error:
         return error
-    with conn:
-        if not conn.execute('SELECT id FROM games WHERE id = %s AND %s IN (home_team_id, away_team_id)',
-                            (game_id, team_id)).fetchone():
+    with session:
+        found = session.execute(text('''SELECT id FROM games
+            WHERE id = :game_id AND :team_id IN (home_team_id, away_team_id)'''),
+            {'game_id': game_id, 'team_id': team_id}).first()
+        if not found:
             return jsonify(error='Game not found for this team.'), 404
         team_sql = f'AND {TEAM_CLIP}' if scope == 'team' else ''
-        rows = conn.execute(f'''
+        params = {'game_id': game_id}
+        if scope == 'team':
+            params['team_id'] = team_id
+        rows = session.execute(text(f'''
             SELECT c.id, c.description, c.period, c.game_clock, c.duration_s,
                    c.action_type, c.shot_subtype,
                    ARRAY(SELECT DISTINCT cp.role::text FROM clip_players cp WHERE cp.clip_id = c.id)
-            FROM clips c WHERE c.game_id = %s {team_sql}
+            FROM clips c WHERE c.game_id = :game_id {team_sql}
             ORDER BY c.video_start_s, c.play_index, c.id LIMIT 10001
-        ''', [game_id, *([team_id, team_id] if scope == 'team' else [])]).fetchall()
+        '''), params).all()
     # Bound legacy category inference, and never silently truncate the game.
     if len(rows) > 10000:
         return jsonify(error='This game has too many clips to browse.'), 503
@@ -145,12 +165,12 @@ def list_game_clips(team_id, game_id):
 
 @bp.get('/api/teams/<int:team_id>/games/<int:game_id>/clips/<int:clip_id>')
 def serve_game_clip(team_id, game_id, clip_id):
-    conn, error = connect()
+    session, error = connect()
     if error:
         return error
-    with conn:
-        row = conn.execute('''SELECT c.video_start_s, c.video_end_s, g.s3_key
+    with session:
+        row = session.execute(text('''SELECT c.video_start_s, c.video_end_s, g.s3_key
             FROM clips c JOIN games g ON g.id = c.game_id
-            WHERE c.id = %s AND g.id = %s AND %s IN (g.home_team_id, g.away_team_id)
-        ''', (clip_id, game_id, team_id)).fetchone()
+            WHERE c.id = :clip_id AND g.id = :game_id AND :team_id IN (g.home_team_id, g.away_team_id)
+        '''), {'clip_id': clip_id, 'game_id': game_id, 'team_id': team_id}).first()
     return serve_clip_row(row, clip_id)

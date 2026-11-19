@@ -5,6 +5,9 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request, send_from_directory
+from flask.json.provider import DefaultJSONProvider
+
+from dataclass.base import Base as ModelBase
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -17,12 +20,23 @@ def _origins(raw):
     return {item.strip().rstrip('/') for item in (raw or '').split(',') if item.strip()}
 
 
+class ModelJSONProvider(DefaultJSONProvider):
+    """Let jsonify turn a mapped dataclass into its column dictionary."""
+
+    def default(self, o):
+        if isinstance(o, ModelBase):
+            return o.to_dict()
+        return super().default(o)
+
+
 def create_app(overrides=None):
     load_dotenv()
     dist = Path(__file__).resolve().parents[1] / 'frontend' / 'dist'
     app = Flask(__name__, static_folder=None)
+    app.json = ModelJSONProvider(app)
     app.config.from_mapping(
         DATABASE_URL=os.getenv('DATABASE_URL'),
+        DATABASE_URL_SQLALCHEMY=os.getenv('DATABASE_URL_SQLALCHEMY'),
         REDIS_URL=os.getenv('REDIS_URL', ''),
         RATE_LIMIT_PATH=os.getenv('EYE_TEST_RATE_LIMIT_PATH', '/tmp/eye-test-limits.sqlite3'),
         BROWSE_PER_MINUTE=int(os.getenv('EYE_TEST_BROWSE_PER_MINUTE', '120')),

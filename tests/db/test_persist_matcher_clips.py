@@ -123,6 +123,8 @@ def postgres_url():
     with psycopg.connect(admin, autocommit=True) as conn:
         conn.execute("CREATE DATABASE nba_clip_persist_test")
     yield f"postgresql://nba@127.0.0.1:{port}/nba_clip_persist_test"
+    from routes.engine import dispose_engine
+    dispose_engine()
     proc.terminate()
     proc.wait(timeout=10)
 

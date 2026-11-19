@@ -1,4 +1,6 @@
 """Exercise team filters, legacy labels, pagination and scope against local PG."""
+import os
+
 import pytest
 import psycopg
 
@@ -21,9 +23,18 @@ def client(postgres_url, tmp_path):
                          (None if i < 35 else 2, i, 'A. Player makes 3-pt jump shot' if i % 2 == 0 else 'A. Player makes dunk', i*6, i*6+5))
             if i < 35:
                 conn.execute("INSERT INTO clip_players VALUES (%s,1,'shot','2026-01-01')", (i+1,))
+    previous = os.environ.get('DATABASE_URL_SQLALCHEMY')
+    os.environ['DATABASE_URL_SQLALCHEMY'] = postgres_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    from routes.engine import dispose_engine
+    dispose_engine()
     app = create_app({'TESTING': True, 'DATABASE_URL': postgres_url, 'REDIS_URL': '',
                       'RATE_LIMIT_PATH': str(tmp_path/'limits')})
-    return app.test_client()
+    yield app.test_client()
+    dispose_engine()
+    if previous is None:
+        os.environ.pop('DATABASE_URL_SQLALCHEMY', None)
+    else:
+        os.environ['DATABASE_URL_SQLALCHEMY'] = previous
 
 
 def test_team_game_counts_and_missing_teams(client):
