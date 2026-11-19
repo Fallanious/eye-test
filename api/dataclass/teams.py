@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, Identity, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from .base import Base
-from .players import Player
+
+if TYPE_CHECKING:
+    from .players import Player
 
 
 class Team(Base):
@@ -22,7 +25,7 @@ class Team(Base):
         DateTime(timezone=True), init=False, server_default=func.now()
     )
     games: Mapped[int | None] = query_expression()
-    players: Mapped[list[Player]] = relationship(back_populates="team", default_factory=list)
+    players: Mapped[list[Player]] = relationship("Player", back_populates="team", default_factory=list)
 
     def __repr__(self) -> str:
         return f"Team(id={self.id}, abbr={self.abbr!r}, city={self.city!r}, name={self.name!r})"

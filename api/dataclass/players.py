@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from sqlalchemy import BigInteger, ForeignKey, Identity, SmallInteger, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
-from .teams import Team
+
+if TYPE_CHECKING:
+    from .teams import Team
 
 
 class Player(Base):
@@ -20,7 +24,7 @@ class Player(Base):
     position: Mapped[str | None] = mapped_column(Text, default=None)
     headshot_url: Mapped[str | None] = mapped_column(Text, default=None)
     team_id: Mapped[int | None] = mapped_column(SmallInteger, ForeignKey("teams.id"), default=None)
-    team: Mapped[Team | None] = relationship(back_populates="players", default=None)
+    team: Mapped[Team | None] = relationship("Team", back_populates="players", default=None)
 
     def __repr__(self) -> str:
         return f"Player(id={self.id}, bbref_id={self.bbref_id!r}, full_name={self.full_name!r})"
