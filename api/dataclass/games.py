@@ -13,7 +13,7 @@ from sqlalchemy import (
     Text,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from .base import Base
 from .teams import Team
@@ -38,6 +38,20 @@ class Game(Base):
     )
     home_team: Mapped[Team | None] = relationship(foreign_keys=[home_team_id], default=None)
     away_team: Mapped[Team | None] = relationship(foreign_keys=[away_team_id], default=None)
+    clips: Mapped[int | None] = query_expression()
+    team_clips: Mapped[int | None] = query_expression()
+
+    def to_dict(self):
+        """Fields the game list reads. home and away are team abbreviations."""
+        return {
+            "id": self.id,
+            "date": self.game_date.isoformat() if self.game_date else None,
+            "season": self.season,
+            "home": self.home_team.abbr if self.home_team else None,
+            "away": self.away_team.abbr if self.away_team else None,
+            "clips": self.clips,
+            "team_clips": self.team_clips,
+        }
 
     def __repr__(self) -> str:
         return (

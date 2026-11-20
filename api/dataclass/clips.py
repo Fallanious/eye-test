@@ -19,7 +19,7 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.dialects.postgresql import ENUM, JSONB
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, query_expression, relationship
 
 from .games import Game
 from .base import Base
@@ -79,6 +79,26 @@ class Clip(Base):
     )
     game: Mapped[Game | None] = relationship(default=None)
     team: Mapped[Team | None] = relationship(default=None)
+    roles: Mapped[list[str] | None] = query_expression()
+
+    def category_keys(self):
+        """Browse categories for this clip, in the order the filters are listed."""
+        from routes.teams import clip_categories
+
+        return clip_categories(self.description, self.action_type, self.shot_subtype, self.roles)
+
+    def to_dict(self):
+        """Fields the game clip list reads. Clock and duration are display labels."""
+        from routes.players import clock_label, duration_label
+
+        return {
+            "id": self.id,
+            "description": self.description,
+            "period": self.period,
+            "game_clock": clock_label(self.game_clock),
+            "duration_label": duration_label(self.duration_s),
+            "categories": self.category_keys(),
+        }
 
     def __repr__(self) -> str:
         return (
@@ -100,6 +120,14 @@ class ClipPlayer(Base):
     )
     role: Mapped[str] = mapped_column(CLIP_ROLE, primary_key=True)
     game_date: Mapped[date] = mapped_column(Date)
+
+    def to_dict(self):
+        """Fields that identify one player on a clip."""
+        return {
+            "player_id": self.player_id,
+            "clip_id": self.clip_id,
+            "role": self.role,
+        }
 
     def __repr__(self) -> str:
         return f"ClipPlayer(player_id={self.player_id}, clip_id={self.clip_id}, role={self.role!r})"

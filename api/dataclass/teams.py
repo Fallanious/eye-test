@@ -27,5 +27,14 @@ class Team(Base):
     games: Mapped[int | None] = query_expression()
     players: Mapped[list[Player]] = relationship("Player", back_populates="team", default_factory=list)
 
+    def to_dict(self):
+        """Fields the team list reads."""
+        return {
+            "id": self.id,
+            "abbr": self.abbr,
+            "name": self.name,
+            "games": self.games,
+        }
+
     def __repr__(self) -> str:
         return f"Team(id={self.id}, abbr={self.abbr!r}, city={self.city!r}, name={self.name!r})"
