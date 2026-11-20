@@ -108,7 +108,13 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
   function play(clip: GameClip) { setPlayAttempt(n => n + 1); setActive(clip); setLoading(true); setError(''); }
   return <section className="tb-film-page" style={teamStyle(team)} aria-label="Game film">
     <button className="pb-back" onClick={onBack}>All {team.abbr} games</button>
-    <div className="tb-heading"><h1>{matchupLabel(game, team)}</h1><p>{dateLabel(game.date)} · {game.season}</p></div>
+    <div className="tb-heading">
+      <div className="tb-team-title">
+        <ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} />
+        <h1>{matchupLabel(game, team)}</h1>
+      </div>
+      <p>{dateLabel(game.date)} · {game.season}</p>
+    </div>
     <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
     <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>All plays</button>
       {Object.entries(CATEGORY_LABELS).map(([key, label]) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
