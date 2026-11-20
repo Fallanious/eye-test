@@ -1,6 +1,9 @@
 """Exercise catalog joins and pagination with a small in-memory relational fixture."""
 import sqlite3
 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+
 from flask import Flask
 import pytest
 
@@ -22,29 +25,22 @@ def catalog(monkeypatch):
             (1, 'a', 'Alpha', 'PG', NULL, 1),
             (2, 'b', 'Bravo', 'C', NULL, 2),
             (3, 'c', 'Charlie', 'SF', NULL, NULL);
+        ALTER TABLE players ADD COLUMN first_name TEXT;
+        ALTER TABLE players ADD COLUMN last_name TEXT;
+        ALTER TABLE teams ADD COLUMN city TEXT;
+        ALTER TABLE teams ADD COLUMN name TEXT;
+        ALTER TABLE teams ADD COLUMN created_at DATETIME;
         INSERT INTO games VALUES (1, '2025-26');
         INSERT INTO clips VALUES (10, 1), (11, 1);
         INSERT INTO clip_players VALUES (1, 10), (1, 10), (1, 11);
     ''')
 
-    class Connection:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            pass
-
-        def execute(self, sql, parameters=()):
-            # The catalog query uses standard joins/counts; adapt PostgreSQL placeholders
-            # and its case-insensitive LIKE spelling for this isolated SQL fixture.
-            return db.execute(sql.replace('%s', '?').replace('ILIKE', 'LIKE'), parameters)
-
-    monkeypatch.setattr(players, '_db_params', lambda: ({}, None))
-    monkeypatch.setattr(players, '_open', lambda _: (Connection(), None))
+    engine = create_engine('sqlite://', creator=lambda: db)
+    monkeypatch.setattr(players, 'connect', lambda: (Session(engine), None))
     app = Flask(__name__)
     app.register_blueprint(players.bp)
     yield app.test_client()
-    db.close()
+    engine.dispose()
 
 
 def test_catalog_includes_zero_clip_players_and_empty_teams(catalog):

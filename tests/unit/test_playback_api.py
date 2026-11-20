@@ -15,11 +15,13 @@ class Connection:
         return self
     def __exit__(self, *args):
         pass
-    def execute(self, sql, parameters):
-        self.parameters = parameters
-        assert 'cp.player_id = %s AND c.id = %s' in sql
+    def execute(self, statement):
+        compiled = statement.compile()
+        self.parameters = compiled.params
+        assert 'clip_players.player_id = :player_id_1' in str(compiled)
+        assert 'clips.id = :id_1' in str(compiled)
         return self
-    def fetchone(self):
+    def first(self):
         return self.row
 
 
@@ -29,18 +31,19 @@ def test_invalid_clip_never_signs_or_cuts(tmp_path, monkeypatch, row, status):
     app = create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path/'limits'),
                       'DATABASE_URL': 'unused'})
     conn = Connection(row)
-    monkeypatch.setattr(players, '_open', lambda _: (conn, None))
+    monkeypatch.setattr(players, 'connect', lambda: (conn, None))
     def refuse(*args):
         pytest.fail('invalid clip must not access storage')
     monkeypatch.setattr('services.storage.presign_get_url', refuse)
     assert app.test_client().get('/api/players/7/clips/9').status_code == status
-    assert conn.parameters == (7, 9)
+    assert conn.parameters['player_id_1'] == 7
+    assert conn.parameters['id_1'] == 9
 
 
 def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch):
     app = create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path/'limits'),
                       'DATABASE_URL': 'unused'})
-    monkeypatch.setattr(players, '_open', lambda _: (Connection((2, 5, 'games/game.mkv')), None))
+    monkeypatch.setattr(players, 'connect', lambda: (Connection((2, 5, 'games/game.mkv')), None))
     monkeypatch.setattr('services.storage.presign_get_url', lambda _: 'https://film.test/signed')
     paths = []
     def cut(source, start, end, path, **kwargs):

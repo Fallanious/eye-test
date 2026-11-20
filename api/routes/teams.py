@@ -1,15 +1,14 @@
 """Team/game browsing using the existing film and player-link catalog."""
-import os
 
 from flask import Blueprint, jsonify, request
-from sqlalchemy import Text, and_, cast, distinct, func, or_, select, text, tuple_
+from sqlalchemy import Text, and_, cast, distinct, func, or_, select, tuple_
 from sqlalchemy.orm import selectinload, with_expression
 
 from dataclass.clips import Clip, ClipPlayer
 from dataclass.games import Game
 from dataclass.players import Player
 from dataclass.teams import Team
-from routes.engine import open_session
+from routes.engine import connect
 from routes.players import serve_clip_row
 from utils.labels import extract_attributes
 
@@ -33,22 +32,6 @@ def team_involved(team_id):
         .exists()
     )
     return or_(Clip.team_id == team_id, and_(Clip.team_id.is_(None), linked_player))
-
-
-def connect():
-    """Open a read-only session. Callers close it with a `with` block."""
-    if not os.environ.get("DATABASE_URL_SQLALCHEMY"):
-        return None, (jsonify(error="Player library is unavailable."), 503)
-    session = None
-    try:
-        session = open_session()
-        session.execute(text("SET TRANSACTION READ ONLY"))
-        session.execute(text("SET LOCAL statement_timeout = '8s'"))
-    except Exception:
-        if session is not None:
-            session.close()
-        return None, (jsonify(error="Database connection unavailable."), 503)
-    return session, None
 
 
 def cursor_value():

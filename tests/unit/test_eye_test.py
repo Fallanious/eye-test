@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from eye_test import create_app
 from public_limits import RateLimits
-from routes.players import _db_params
+from routes.engine import connect
 
 
 def make_app(tmp_path, **kwargs):
@@ -69,14 +69,10 @@ def test_shared_atomic_limits_and_expiration(tmp_path):
     assert first.take([('ip', 5)], now=180) == 0
 
 
-def test_public_database_is_read_only_and_keeps_pooler(tmp_path):
-    url = 'postgresql://reader:password@example-pooler.neon.tech/neondb'
-    app = make_app(tmp_path, DATABASE_URL=url)
-    with app.app_context():
-        params, error = _db_params()
-    assert error is None
-    assert params['conninfo'] == url
-    assert 'options' not in params
+def test_missing_database_url_returns_unavailable(tmp_path, monkeypatch):
+    app = make_app(tmp_path)
+    monkeypatch.delenv('DATABASE_URL_SQLALCHEMY', raising=False)
+    assert app.test_client().get('/api/players').status_code == 503
 
 
 def test_limit_storage_failure_fails_closed(tmp_path):
@@ -87,25 +83,22 @@ def test_limit_storage_failure_fails_closed(tmp_path):
 
 
 def test_database_guards_are_set_before_queries(tmp_path, monkeypatch):
-    from routes.players import _open
+    monkeypatch.setenv("DATABASE_URL_SQLALCHEMY", "unused")
     calls = []
     class Connection:
         def execute(self, sql):
-            calls.append(sql)
+            calls.append(str(sql))
     connection = Connection()
-    def connect(**kwargs):
-        assert 'options' not in kwargs
-        return connection
-    monkeypatch.setattr('psycopg.connect', connect)
+    monkeypatch.setattr('routes.engine.open_session', lambda: connection)
     app = make_app(tmp_path)
     with app.app_context():
-        conn, error = _open({'conninfo': 'unused'})
+        conn, error = connect()
     assert conn is connection and error is None
     assert calls == ['SET TRANSACTION READ ONLY', "SET LOCAL statement_timeout = '8s'"]
 
 
 def test_database_guard_failure_closes_connection(tmp_path, monkeypatch):
-    from routes.players import _open
+    monkeypatch.setenv("DATABASE_URL_SQLALCHEMY", "unused")
     class Connection:
         closed = False
         def execute(self, sql):
@@ -113,8 +106,8 @@ def test_database_guard_failure_closes_connection(tmp_path, monkeypatch):
         def close(self):
             self.closed = True
     connection = Connection()
-    monkeypatch.setattr('psycopg.connect', lambda **kwargs: connection)
+    monkeypatch.setattr('routes.engine.open_session', lambda: connection)
     with make_app(tmp_path).app_context():
-        conn, error = _open({'conninfo': 'unused'})
+        conn, error = connect()
     assert conn is None and error[1] == 503
     assert connection.closed

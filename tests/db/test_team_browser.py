@@ -77,3 +77,19 @@ def test_playback_checks_game_and_team_and_missing_film(client):
     response = client.get('/api/teams/1/games/1/clips/1')
     assert response.status_code == 404
     assert 'no film' in response.json['error']
+
+
+def test_player_clip_pages_keep_multiple_roles_together(client, postgres_url):
+    with psycopg.connect(postgres_url) as conn:
+        conn.execute("INSERT INTO clip_players VALUES (15, 1, 'assist', '2026-01-01')")
+    url = '/api/players/1/clips'
+    first = client.get(url).json
+    assert first['cursor'] == 15
+    assert [(clip['id'], clip['role']) for clip in first['clips'][-2:]] == [
+        (15, 'assist'), (15, 'shot')]
+    second = client.get(url + '?cursor=15').json
+    assert second['clips'][0]['id'] == 16
+    filtered = client.get(url + '?role=assist').json
+    assert [clip['id'] for clip in filtered['clips']] == [15]
+    assert filtered['cursor'] is None
+    assert client.get(url + '?role=assist&cursor=1').status_code == 404

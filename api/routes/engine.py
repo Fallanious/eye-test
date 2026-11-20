@@ -1,4 +1,5 @@
-from sqlalchemy import create_engine
+from flask import jsonify
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 import os
 
@@ -26,3 +27,19 @@ def open_session():
         engine = create_engine(url, pool_size=10, connect_args={"connect_timeout": 8})
         SessionLocal.configure(bind=engine)
     return SessionLocal()
+
+
+def connect():
+    """Open a read-only session. Callers close it with a `with` block."""
+    if not os.environ.get("DATABASE_URL_SQLALCHEMY"):
+        return None, (jsonify(error="Player library is unavailable."), 503)
+    session = None
+    try:
+        session = open_session()
+        session.execute(text("SET TRANSACTION READ ONLY"))
+        session.execute(text("SET LOCAL statement_timeout = '8s'"))
+    except Exception:
+        if session is not None:
+            session.close()
+        return None, (jsonify(error="Database connection unavailable."), 503)
+    return session, None
