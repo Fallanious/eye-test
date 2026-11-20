@@ -7,6 +7,8 @@ import ClipStack from './ClipStack';
 
 import { teamName, teamColors, cardColors, TEAM_ALIASES } from '../teamTheme';
 
+import { PLAYER_FILTERS } from '../playLabels';
+
 function countLabel(count: number, one: string, many: string) {
   return `${count} ${count === 1 ? one : many}`;
 }
@@ -64,7 +66,6 @@ export default function PlayerBrowser() {
   const playerColor = selected?.team ? teamColors(selected.team)[0] : '#242426';
   const archive = library.season ? `${library.season} archive` : '';
   const markBroken = (id: number) => setBroken(prev => ({ ...prev, [id]: true }));
-  const filters = [{ role: '', label: 'All plays' }, ...clips.roles];
 
   const { hasMore: moreClips, loadMore: loadMoreClips } = clips;
   const { hasMore: morePlayers, loadMore: loadMorePlayers } = library;
@@ -98,6 +99,11 @@ export default function PlayerBrowser() {
             <span className="pb-card-layer" aria-hidden="true" />
             <PlayerCard player={selected} broken={!!broken[selected.id]} onBroken={() => markBroken(selected.id)} />
           </div>
+          <div className="pb-types tb-categories" role="group" aria-label="Filter player plays by category">
+            {PLAYER_FILTERS.map(item => (
+              <button key={item.label} aria-pressed={clips.role === item.role} className={clips.role === item.role ? 'active' : ''} onClick={() => { clips.chooseRole(item.role); if (queueRef.current) queueRef.current.scrollTop = 0; }}>{item.label}</button>
+            ))}
+          </div>
           <div className="pb-session" style={{ '--player-color': playerColor } as CSSProperties}>
             <section className="pb-preview" aria-label="Film preview">
               <div className="pb-stage" aria-busy={film.cutting}>
@@ -114,11 +120,6 @@ export default function PlayerBrowser() {
                 <div className="pb-plays-head">
                   <h2>Plays</h2>
                   <span role="status">{clips.loading ? 'Loading plays…' : !clips.role ? countLabel(selected.clips, 'clip', 'clips') : ''}</span>
-                </div>
-                <div className="pb-types">
-                  {filters.map(item => (
-                    <button key={item.label} aria-pressed={clips.role === item.role} className={clips.role === item.role ? 'active' : ''} onClick={() => { clips.chooseRole(item.role); if (queueRef.current) queueRef.current.scrollTop = 0; }}>{item.label}</button>
-                  ))}
                 </div>
               </div>
               <div className="pb-queue-scroll" ref={queueRef}>

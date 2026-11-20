@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { fetchTeams, fetchTeamGames, fetchGameClips, gameClipUrl } from '../api';
 import type { BrowserTeam, TeamGame, GameClip, GameClipPage } from '../types';
-import { cardColors, teamName, teamColors } from '../teamTheme';
+import { TEAM_ALIASES, cardColors, teamName, teamColors } from '../teamTheme';
 import ClipStack from './ClipStack';
+import { GAME_FILTERS, PLAY_LABELS, playLabel } from '../playLabels';
 
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not load film.'; }
 function dateLabel(date: string) { return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
@@ -40,13 +41,14 @@ export default function TeamBrowser() {
   return <section aria-label="Team film library">
     <header className="tb-heading"><div><h1>Teams</h1><p>Pick a team, a game, and browse clips.</p></div></header>
     <div className="tb-layout">
-      <aside className="tb-team-rail" aria-label="Choose a team">
-        {teams.map(item => <button key={item.id} className="pb-card tb-team-card" style={teamStyle(item)} aria-pressed={item.id === team.id}
+      <div className="tb-team-picker" role="group" aria-label="Choose a team">
+        {teams.map(item => <button key={item.id} className="pb-team-tab pb-card" style={teamStyle(item)}
+          aria-label={teamName(item.abbr)} title={teamName(item.abbr)} aria-pressed={item.id === team.id}
           onClick={() => setSelected(item.id)}>
           <span className="pb-card-layer" aria-hidden="true" />
-          <span className="pb-info"><span className="tb-team-copy"><strong>{teamName(item.abbr)}</strong><span className="tb-team-secondary">{item.abbr}</span><span className="tb-team-tertiary">{item.games} {item.games === 1 ? 'game' : 'games'}</span></span></span>
+          <span className="pb-info">{TEAM_ALIASES[item.abbr] || item.abbr}</span>
         </button>)}
-      </aside>
+      </div>
       <TeamGames key={team.id} team={team} onSelect={setGame} />
     </div>
   </section>;
@@ -54,50 +56,46 @@ export default function TeamBrowser() {
 
 function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: TeamGame) => void }) {
   const [games, setGames] = useState<TeamGame[]>([]);
-  const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const alive = useRef(true);
-  const busy = useRef(false);
-
 
   useEffect(() => {
-    alive.current = true;
     const controller = new AbortController();
-    fetchTeamGames(team.id, null, controller.signal).then(data => { setGames(data.games); setCursor(data.cursor); setError(''); })
-      .catch(err => { if (!controller.signal.aborted) setError(message(err)); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => { alive.current = false; controller.abort(); };
+    async function loadGames() {
+      let cursor: number | null = null;
+      const loaded: TeamGame[] = [];
+      do {
+        const page = await fetchTeamGames(team.id, cursor, controller.signal);
+        if (controller.signal.aborted) return;
+        loaded.push(...page.games);
+        setGames([...loaded]);
+        cursor = page.cursor;
+      } while (cursor != null);
+    }
+    loadGames().catch(err => {
+      if (!controller.signal.aborted) setError(message(err));
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
   }, [team.id, attempt]);
-
-
-  async function more() {
-    if (busy.current || !cursor) return;
-    busy.current = true; setLoading(true); setError('');
-    try { const data = await fetchTeamGames(team.id, cursor); if (alive.current) { setGames(prev => [...prev, ...data.games]); setCursor(data.cursor); } }
-    catch (err) { if (alive.current) setError(message(err)); }
-    finally { busy.current = false; if (alive.current) setLoading(false); }
-  }
-
 
   return <section className="tb-games" aria-label={`${teamName(team.abbr)} games`}>
     <div className="tb-games-heading"><div className="tb-team-title"><ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} /><h2>{teamName(team.abbr)}</h2></div><span>{team.games} games with film</span></div>
-    {error && <div role="alert" className="notice">{error} {!games.length && <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button>}</div>}
+    {error && <div role="alert" className="notice">{error} <button onClick={() => { setError(''); setLoading(true); setAttempt(a => a + 1); }}>Retry</button></div>}
     <div className="tb-game-list">
       {games.map(game => <button className="tb-game-card" key={game.id} onClick={() => onSelect(game)}>
-        <span className="tb-game-identity"><ClipStack className="pb-team-mark" colors={teamColors(game.home === team.abbr ? game.away : game.home)} /><span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span></span>
+        <span className="tb-game-identity"><span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span></span>
         <span className="tb-game-count">{game.team_clips} team clips<small>{game.clips} in game</small></span>
       </button>)}
       {loading && Array.from({ length: 3 }, (_, i) => <div key={i} className="tb-game-card tb-game-skeleton" aria-hidden="true"><span className="pb-skeleton pb-skeleton-line" /><span className="pb-skeleton pb-skeleton-line short" /></div>)}
     </div>
     {loading && <p role="status">Loading games…</p>}
     {!loading && !error && !games.length && <p className="empty">No games with clips for this team.</p>}
-    {cursor && <button className="tb-more" disabled={loading} onClick={() => void more()}>Load more games</button>}
   </section>;
 }
 
-const CATEGORY_LABELS: Record<string, string> = { three_pointer: 'Three-pointers', dunk: 'Dunks', layup: 'Layups', shot: 'Shots', rebound: 'Rebounds', steal: 'Steals', block: 'Blocks', assist: 'Assists', foul: 'Fouls', turnover: 'Turnovers', free_throw: 'Free throws' };
 
 function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; onBack: () => void }) {
   const [categories, setCategories] = useState<string[]>([]);
@@ -116,8 +114,8 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
       <p>{dateLabel(game.date)} · {game.season}</p>
     </div>
     <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
-    <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>All plays</button>
-      {Object.entries(CATEGORY_LABELS).map(([key, label]) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
+    <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>{PLAY_LABELS.all}</button>
+      {GAME_FILTERS.map(({ category: key, label }) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
     </div>
     <div className="pb-session tb-film-session">
       <section className="tb-preview" aria-label="Clip preview">
@@ -160,7 +158,7 @@ function GameClipList({ team, game, categories, active, onPlay }: { team: Browse
   return <section className="pb-plays tb-clip-panel" aria-label="Game plays"><div className="pb-queue-head"><div className="pb-plays-head"><h2>Plays</h2><span role="status">{page ? `${page.total} clips` : 'Loading plays…'}</span></div></div>
     <div className="pb-queue-scroll">
       {error && <div role="alert" className="notice">{error} {!page && <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button>}</div>}
-      {page?.clips.map(clip => <button key={clip.id} className={`pb-row ${active?.id === clip.id ? 'current' : ''}`} aria-pressed={active?.id === clip.id} onClick={() => onPlay(clip)}><span><strong>{clip.description}</strong><small>{periodLabel(clip.period)} · {clip.game_clock}</small></span><span className="pb-kind">{clip.categories.map(c => CATEGORY_LABELS[c]).join(' · ')}</span><span className="pb-duration">{clip.duration_label}</span></button>)}
+      {page?.clips.map(clip => <button key={clip.id} className={`pb-row ${active?.id === clip.id ? 'current' : ''}`} aria-pressed={active?.id === clip.id} onClick={() => onPlay(clip)}><span><strong>{clip.description}</strong><small>{periodLabel(clip.period)} · {clip.game_clock}</small></span><span className="pb-kind">{clip.categories.map(playLabel).join(' · ')}</span><span className="pb-duration">{clip.duration_label}</span></button>)}
       {loading && <div className="tb-loading pb-loading-fade" role="status">Loading plays…</div>}
       {!loading && page?.clips.length === 0 && <p className="empty">No plays match these filters.</p>}
       {page?.cursor && <button className="tb-more" disabled={loading} onClick={() => void more()}>Load more plays</button>}
