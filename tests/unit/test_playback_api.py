@@ -40,7 +40,8 @@ def test_invalid_clip_never_signs_or_cuts(tmp_path, monkeypatch, row, status):
     assert conn.parameters['id_1'] == 9
 
 
-def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch):
+@pytest.mark.parametrize('query,disposition', [('', 'inline'), ('?download=1', 'attachment')])
+def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch, query, disposition):
     app = create_app({'TESTING': True, 'REDIS_URL': '', 'RATE_LIMIT_PATH': str(tmp_path/'limits'),
                       'DATABASE_URL': 'unused'})
     monkeypatch.setattr(players, 'connect', lambda: (Connection((2, 5, 'games/game.mkv')), None))
@@ -52,9 +53,10 @@ def test_playback_returns_only_cut_and_cleans_up(tmp_path, monkeypatch):
         Path(path).write_bytes(b'cut-video')
         return True
     monkeypatch.setattr('generate_clips.extract_clip', cut)
-    with app.test_request_context('/api/players/7/clips/9'):
+    with app.test_request_context('/api/players/7/clips/9' + query):
         response = players.serve_player_clip(7, 9)
         response.direct_passthrough = False
+        assert response.headers['Content-Disposition'] == f'{disposition}; filename=9.mp4'
         assert response.mimetype == 'video/mp4'
         assert response.get_data() == b'cut-video'
         response.close()

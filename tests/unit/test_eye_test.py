@@ -18,6 +18,9 @@ def test_browser_origin_is_echoed_only_when_listed(tmp_path):
     assert 'Origin' in allowed.headers['Vary']
     blocked = client.get('/healthz', headers={'Origin': 'https://other.example'})
     assert 'Access-Control-Allow-Origin' not in blocked.headers
+    assert 'Origin' in blocked.vary
+    assert 'Access-Control-Allow-Credentials' not in allowed.headers
+    assert client.post('/api/players').status_code == 405
     preflight = client.options('/api/players', headers={'Origin': 'https://eye.example'})
     assert preflight.status_code == 204
     assert preflight.headers['Access-Control-Allow-Origin'] == 'https://eye.example'

@@ -61,19 +61,24 @@ def create_app(overrides=None):
     app.register_blueprint(bp)
     app.register_blueprint(teams_bp)
 
+    if any(rule.methods - {'GET', 'HEAD', 'OPTIONS'} for rule in app.url_map.iter_rules()
+           if rule.rule.startswith('/api/')):
+        raise ValueError('Public API routes must be read-only')
+
+    if app.config['ALLOWED_ORIGINS'] & {'*', 'null'}:
+        raise ValueError('ALLOWED_ORIGINS requires explicit frontend origins')
+
     @app.before_request
     def cors_preflight():
         if request.method != 'OPTIONS':
             return None
-        origin = request.headers.get('Origin', '').rstrip('/')
+        origin = request.headers.get('Origin')
         if origin not in app.config['ALLOWED_ORIGINS']:
             return None
         response = app.response_class('', status=204)
-        response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
         response.headers['Access-Control-Max-Age'] = '600'
-        response.headers['Vary'] = 'Origin'
         return response
 
     @app.before_request
@@ -98,13 +103,10 @@ def create_app(overrides=None):
         response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
         if response.status_code >= 400:
             response.headers['Cache-Control'] = 'no-store'
-        origin = request.headers.get('Origin', '').rstrip('/')
+        origin = request.headers.get('Origin')
         if origin in app.config['ALLOWED_ORIGINS']:
             response.headers['Access-Control-Allow-Origin'] = origin
-            vary = [part.strip() for part in response.headers.get('Vary', '').split(',') if part.strip()]
-            if 'Origin' not in vary:
-                vary.append('Origin')
-            response.headers['Vary'] = ', '.join(vary)
+        response.vary.add('Origin')
         return response
 
     @app.errorhandler(Exception)
