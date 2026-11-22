@@ -98,6 +98,7 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
 
 
 function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; onBack: () => void }) {
+  const [clutch, setClutch] = useState(false);
   const [categories, setCategories] = useState<string[]>([]);
   const [active, setActive] = useState<GameClip | null>(null);
   const [playAttempt, setPlayAttempt] = useState(0);
@@ -115,6 +116,7 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
     </div>
     <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
     <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>{PLAY_LABELS.all}</button>
+      <button aria-pressed={clutch} className={clutch ? 'active' : ''} onClick={() => setClutch(!clutch)}>Clutch</button>
       {GAME_FILTERS.map(({ category: key, label }) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
     </div>
     <div className="pb-session tb-film-session">
@@ -126,12 +128,12 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
         {error && <p className="notice" role="alert">{error} <button onClick={() => setActive(null)}>Clear preview</button></p>}
         {active && <div className="pb-now"><h2>{active.description}</h2><p>{periodLabel(active.period)} · {active.game_clock} · {active.duration_label}</p></div>}
       </section>
-      <GameClipList key={categories.join(',')} team={team} game={game} categories={categories} active={active} onPlay={play} />
+      <GameClipList key={JSON.stringify([categories, clutch])} clutch={clutch} team={team} game={game} categories={categories} active={active} onPlay={play} />
     </div>
   </section>;
 }
 
-function GameClipList({ team, game, categories, active, onPlay }: { team: BrowserTeam; game: TeamGame; categories: string[]; active: GameClip | null; onPlay: (clip: GameClip) => void }) {
+function GameClipList({ team, game, categories, clutch, active, onPlay }: { team: BrowserTeam; game: TeamGame; categories: string[]; clutch: boolean; active: GameClip | null; onPlay: (clip: GameClip) => void }) {
   const [page, setPage] = useState<GameClipPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -142,16 +144,16 @@ function GameClipList({ team, game, categories, active, onPlay }: { team: Browse
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
-    fetchGameClips(team.id, game.id, categoryKey.split(',').filter(Boolean), null, controller.signal)
+    fetchGameClips(team.id, game.id, categoryKey.split(',').filter(Boolean), clutch, null, controller.signal)
       .then(data => { setPage(data); setError(''); })
       .catch(err => { if (!controller.signal.aborted) setError(message(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { alive.current = false; controller.abort(); };
-  }, [team.id, game.id, categoryKey, attempt]);
+  }, [team.id, game.id, categoryKey, clutch, attempt]);
   async function more() {
     if (!page?.cursor || busy.current) return;
     busy.current = true; setLoading(true); setError('');
-    try { const data = await fetchGameClips(team.id, game.id, categories, page.cursor); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
+    try { const data = await fetchGameClips(team.id, game.id, categories, clutch, page.cursor); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
     catch (err) { if (alive.current) setError(message(err)); }
     finally { busy.current = false; if (alive.current) setLoading(false); }
   }

@@ -100,6 +100,7 @@ export default function PlayerBrowser() {
             <PlayerCard player={selected} broken={!!broken[selected.id]} onBroken={() => markBroken(selected.id)} />
           </div>
           <div className="pb-types tb-categories" role="group" aria-label="Filter player plays by category">
+            <button aria-pressed={clips.clutch} className={clips.clutch ? 'active' : ''} onClick={() => clips.chooseRole(clips.role, !clips.clutch)}>Clutch</button>
             {PLAYER_FILTERS.map(item => (
               <button key={item.label} aria-pressed={clips.role === item.role} className={clips.role === item.role ? 'active' : ''} onClick={() => { clips.chooseRole(item.role); if (queueRef.current) queueRef.current.scrollTop = 0; }}>{item.label}</button>
             ))}
@@ -119,7 +120,7 @@ export default function PlayerBrowser() {
               <div className="pb-queue-head">
                 <div className="pb-plays-head">
                   <h2>Plays</h2>
-                  <span role="status">{clips.loading ? 'Loading plays…' : !clips.role ? countLabel(selected.clips, 'clip', 'clips') : ''}</span>
+                  <span role="status">{clips.loading ? 'Loading plays…' : !clips.role && !clips.clutch ? countLabel(selected.clips, 'clip', 'clips') : ''}</span>
                 </div>
               </div>
               <div className="pb-queue-scroll" ref={queueRef}>

@@ -15,6 +15,8 @@ export function usePlayerClips() {
   const cursorRef = useRef<number | null>(null);
   const loadingMoreRef = useRef(false);
   const selectedRef = useRef<BrowserPlayer | null>(null);
+  const [clutch, setClutch] = useState(false);
+  const clutchRef = useRef(false);
   const roleRef = useRef('');
 
   function remember(nextCursor: number | null, nextRole: string) {
@@ -27,7 +29,7 @@ export function usePlayerClips() {
   async function loadFirst(player: BrowserPlayer, nextRole: string, token: number) {
     setLoading(true);
     try {
-      const data = await fetchPlayerClips(player.id, { role: nextRole });
+      const data = await fetchPlayerClips(player.id, { role: nextRole, clutch: clutchRef.current });
       if (requestId.current !== token) return;
       setRoles(data.roles);
       setClips(data.clips);
@@ -43,6 +45,8 @@ export function usePlayerClips() {
   async function open(player: BrowserPlayer) {
     const token = ++requestId.current;
     loadingMoreRef.current = false;
+    clutchRef.current = false;
+    setClutch(false);
     selectedRef.current = player;
     setSelected(player);
     setClips([]);
@@ -53,9 +57,11 @@ export function usePlayerClips() {
     await loadFirst(player, '', token);
   }
 
-  function chooseRole(nextRole: string) {
+  function chooseRole(nextRole: string, nextClutch = clutchRef.current) {
     const player = selectedRef.current;
-    if (!player || nextRole === roleRef.current) return;
+    if (!player || (nextRole === roleRef.current && nextClutch === clutchRef.current)) return;
+    clutchRef.current = nextClutch;
+    setClutch(nextClutch);
     const token = ++requestId.current;
     loadingMoreRef.current = false;
     setClips([]);
@@ -73,7 +79,7 @@ export function usePlayerClips() {
     loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const data = await fetchPlayerClips(player.id, { cursor: after, role: roleRef.current });
+      const data = await fetchPlayerClips(player.id, { cursor: after, role: roleRef.current, clutch: clutchRef.current });
       if (requestId.current !== token) return;
       setClips(prev => {
         const seen = new Set(prev.map(clip => `${clip.id}:${clip.role}`));
@@ -118,6 +124,7 @@ export function usePlayerClips() {
     error,
     open,
     close,
+    clutch,
     chooseRole,
     loadMore,
   };

@@ -39,6 +39,7 @@ from decimal import Decimal, ROUND_HALF_EVEN
 from typing import Any, Mapping
 from urllib.parse import parse_qsl, unquote, urlparse, urlunparse
 
+from clip_scores import score_attributes
 from match_play_timestamps import (
     GROUP_WINDOW_S,
     cluster_play_groups,
@@ -675,6 +676,7 @@ def persist_matched_output(
                                 row["action_type"],
                                 Jsonb(
                                     {
+                                        **score_attributes(original_plays, row["play_index"]),
                                         ATTR_INDEXES: row["shared_sequence_indexes"],
                                         ATTR_PBP: pbp_hash,
                                         ATTR_GROUPING: grouping_hash,

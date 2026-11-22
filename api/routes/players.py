@@ -226,6 +226,8 @@ def list_player_clips(player_id):
     order = (Clip.video_start_s, Clip.play_index, Clip.id)
     links = (select(Clip, role_name).join(ClipPlayer, ClipPlayer.clip_id == Clip.id)
              .where(ClipPlayer.player_id == player_id))
+    if request.args.get("clutch") == "1":
+        links = links.where(Clip.is_clutch.is_(True))
     if role:
         links = links.where(role_name == role)
     with session:

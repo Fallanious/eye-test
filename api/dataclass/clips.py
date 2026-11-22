@@ -64,6 +64,9 @@ class Clip(Base):
     attributes: Mapped[dict] = mapped_column(
         JSONB, default_factory=dict, server_default=text("'{}'::jsonb")
     )
+    is_clutch: Mapped[bool | None] = mapped_column(Computed("""period >= 4 AND game_clock BETWEEN interval '0 seconds' AND interval '5 minutes'
+    AND abs((attributes->'pre_play_score'->>'away')::integer -
+            (attributes->'pre_play_score'->>'home')::integer) <= 5""", persisted=True), init=False)
     s3_key: Mapped[str | None] = mapped_column(Text, unique=True, default=None)
     status: Mapped[str] = mapped_column(CLIP_STATUS, default="pending", server_default="pending")
     duration_s: Mapped[Decimal] = mapped_column(

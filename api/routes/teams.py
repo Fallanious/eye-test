@@ -133,6 +133,8 @@ def list_game_clips(team_id, game_id):
         .order_by(Clip.video_start_s, Clip.play_index, Clip.id)
         .limit(10001)
     )
+    if request.args.get("clutch") == "1":
+        statement = statement.where(Clip.is_clutch.is_(True))
     if scope == 'team':
         statement = statement.where(team_involved(team_id))
     with session:
