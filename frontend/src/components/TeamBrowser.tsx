@@ -91,7 +91,6 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
       </button>)}
       {loading && Array.from({ length: 3 }, (_, i) => <div key={i} className="tb-game-card tb-game-skeleton" aria-hidden="true"><span className="pb-skeleton pb-skeleton-line" /><span className="pb-skeleton pb-skeleton-line short" /></div>)}
     </div>
-    {loading && <p role="status">Loading games…</p>}
     {!loading && !error && !games.length && <p className="empty">No games with clips for this team.</p>}
   </section>;
 }
