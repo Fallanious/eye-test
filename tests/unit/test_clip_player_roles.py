@@ -45,3 +45,11 @@ def test_initials_and_suffix_split_to_the_players_table_shape():
     assert clip_player_roles("T. Hardaway Jr. misses 2-pt jump shot") == [
         ("T. Hardaway Jr.", "shot")
     ]
+
+
+def test_accented_surname_in_primary_and_secondary_roles():
+    assert clip_player_roles("L. Dončić makes 2-pt jump shot") == [("L. Dončić", "shot")]
+    assert clip_player_roles("Turnover by L. Dončić (bad pass; steal by K. Flemings)") == [
+        ("L. Dončić", "turnover"), ("K. Flemings", "steal")]
+    assert clip_player_roles("W. Kessler makes layup (assist by L. Dončić)")[-1] == (
+        "L. Dončić", "assist")

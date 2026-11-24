@@ -32,6 +32,7 @@ def test_only_public_routes_are_registered(tmp_path):
     assert endpoints == {'/api/players', '/api/players/<int:player_id>/clips',
                          '/api/players/<int:player_id>/clips/<int:clip_id>',
                          '/api/teams', '/api/teams/<int:team_id>/games',
+                         '/api/teams/<int:team_id>/games/<int:game_id>/players',
                          '/api/teams/<int:team_id>/games/<int:game_id>/clips',
                          '/api/teams/<int:team_id>/games/<int:game_id>/clips/<int:clip_id>'}
     client = app.test_client()

@@ -93,3 +93,29 @@ def test_player_clip_pages_keep_multiple_roles_together(client, postgres_url):
     assert [clip['id'] for clip in filtered['clips']] == [15]
     assert filtered['cursor'] is None
     assert client.get(url + '?role=assist&cursor=1').status_code == 404
+
+
+def test_game_players_filter_before_pagination(client, postgres_url):
+    with psycopg.connect(postgres_url) as conn:
+        conn.execute("""INSERT INTO players (bbref_id,full_name,first_name,last_name,team_id)
+                        VALUES ('helper','B. Helper','B','Helper',1),
+                               ('opponent','C. Opponent','C','Opponent',2)""")
+        conn.execute("""INSERT INTO clip_players VALUES
+                        (1,2,'assist','2026-01-01'), (1,3,'foul','2026-01-01'),
+                        (3,2,'assist','2026-01-01')""")
+        conn.execute("""UPDATE clips SET period = 4, game_clock = '1 minute',
+                        attributes = '{"pre_play_score":{"home":90,"away":92}}' WHERE id = 3""")
+
+    base = '/api/teams/1/games/1'
+    assert client.get(base + '/players').json['players'] == [
+        {'id': 1, 'full_name': 'A. Player'}, {'id': 2, 'full_name': 'B. Helper'}]
+    assert client.get('/api/teams/3/games/1/players').status_code == 404
+    assert client.get(base + '/clips?player=invalid').status_code == 400
+    assert client.get(base + '/clips?player=3').json['total'] == 0
+    filtered = client.get(base + '/clips?player=2&categories=three_pointer&clutch=1').json
+    assert [clip['id'] for clip in filtered['clips']] == [3]
+    url = base + '/clips?player=1&player=2'
+    first = client.get(url).json
+    assert first['total'] == 35
+    second = client.get(url + f"&cursor={first['cursor']}").json
+    assert [clip['id'] for clip in first['clips'] + second['clips']] == list(range(1, 36))

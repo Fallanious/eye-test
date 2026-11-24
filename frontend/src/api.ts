@@ -36,8 +36,15 @@ export function fetchTeams(signal?: AbortSignal) {
 export function fetchTeamGames(teamId: number, cursor?: number | null, signal?: AbortSignal) {
   return fetchJSON<{ games: TeamGame[]; cursor: number | null }>(`/api/teams/${teamId}/games${cursor ? `?cursor=${cursor}` : ''}`, { signal });
 }
-export function fetchGameClips(teamId: number, gameId: number, categories: string[], clutch: boolean, cursor?: number | null, signal?: AbortSignal) {
+export type GamePlayer = { id: number; full_name: string };
+
+export function fetchGamePlayers(teamId: number, gameId: number, signal: AbortSignal) {
+  return fetchJSON<{ players: GamePlayer[] }>(`/api/teams/${teamId}/games/${gameId}/players`, { signal });
+}
+
+export function fetchGameClips(teamId: number, gameId: number, categories: string[], clutch: boolean, players: number[], cursor?: number | null, signal?: AbortSignal) {
   const params = new URLSearchParams({ scope: 'team', categories: categories.join(',') });
+  for (const id of players) params.append('player', String(id));
   if (clutch) params.set('clutch', '1');
   if (cursor) params.set('cursor', String(cursor));
   return fetchJSON<GameClipPage>(`/api/teams/${teamId}/games/${gameId}/clips?${params}`, { signal });

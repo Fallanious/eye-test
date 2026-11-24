@@ -108,12 +108,47 @@ def list_games(team_id):
         return jsonify(games=page, cursor=next_cursor)
 
 
+def game_for_team(team_id, game_id):
+    return select(Game.id).where(
+        Game.id == game_id,
+        or_(Game.home_team_id == team_id, Game.away_team_id == team_id),
+    )
+
+
+@bp.get('/api/teams/<int:team_id>/games/<int:game_id>/players')
+def list_game_players(team_id, game_id):
+    session, error = connect()
+    if error:
+        return error
+    # A link to this team's player also establishes ownership for a legacy
+    # clip with no recorded team. Explicitly opposing clips stay excluded.
+    roster = (
+        select(Player.id, Player.full_name)
+        .join(ClipPlayer, ClipPlayer.player_id == Player.id)
+        .join(Clip, Clip.id == ClipPlayer.clip_id)
+        .where(Player.team_id == team_id, Clip.game_id == game_id,
+               or_(Clip.team_id == team_id, Clip.team_id.is_(None)))
+        .distinct()
+        .order_by(Player.full_name, Player.id)
+    )
+    with session:
+        if session.scalar(game_for_team(team_id, game_id)) is None:
+            return jsonify(error='Game not found for this team.'), 404
+        return jsonify(players=[dict(row) for row in session.execute(roster).mappings()])
+
+
 @bp.get('/api/teams/<int:team_id>/games/<int:game_id>/clips')
 def list_game_clips(team_id, game_id):
     try:
         cursor = cursor_value()
     except ValueError:
         return jsonify(error='Invalid clip cursor.'), 400
+    try:
+        player_ids = [int(value) for value in request.args.getlist('player')]
+        if any(value < 1 or value > 9223372036854775807 for value in player_ids):
+            raise ValueError
+    except ValueError:
+        return jsonify(error='Invalid player filter.'), 400
     scope = request.args.get('scope', 'team')
     categories = set(filter(None, request.args.get('categories', '').split(',')))
     if scope not in ('team', 'both') or categories - CATEGORIES.keys():
@@ -135,13 +170,18 @@ def list_game_clips(team_id, game_id):
     )
     if request.args.get("clutch") == "1":
         statement = statement.where(Clip.is_clutch.is_(True))
+    if player_ids:
+        statement = statement.where(
+            select(ClipPlayer.clip_id)
+            .join(Player, Player.id == ClipPlayer.player_id)
+            .where(ClipPlayer.clip_id == Clip.id, Player.team_id == team_id,
+                   ClipPlayer.player_id.in_(player_ids))
+            .exists()
+        )
     if scope == 'team':
         statement = statement.where(team_involved(team_id))
     with session:
-        found = session.scalar(select(Game.id).where(
-            Game.id == game_id,
-            or_(Game.home_team_id == team_id, Game.away_team_id == team_id),
-        ))
+        found = session.scalar(game_for_team(team_id, game_id))
         if found is None:
             return jsonify(error='Game not found for this team.'), 404
         clips = session.scalars(statement).all()
