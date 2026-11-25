@@ -1141,6 +1141,7 @@ button.pb-card:focus-visible .pb-info {
 }
 
 .app-tabs .app-section {
+  text-decoration: none;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;

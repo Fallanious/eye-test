@@ -122,6 +122,8 @@ def create_app(overrides=None):
 
     if (dist / 'index.html').is_file():
         @app.get('/')
+        @app.get('/players', strict_slashes=False)
+        @app.get('/teams', strict_slashes=False)
         def index():
             return send_from_directory(dist, 'index.html')
 
