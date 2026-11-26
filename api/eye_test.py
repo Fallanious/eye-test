@@ -124,7 +124,10 @@ def create_app(overrides=None):
         @app.get('/')
         @app.get('/players', strict_slashes=False)
         @app.get('/teams', strict_slashes=False)
-        def index():
+        @app.get('/players/<int:player_id>', strict_slashes=False)
+        @app.get('/teams/<int:team_id>', strict_slashes=False)
+        @app.get('/teams/<int:team_id>/games/<int:game_id>', strict_slashes=False)
+        def index(**_ids):
             return send_from_directory(dist, 'index.html')
 
         @app.get('/assets/<path:filename>')

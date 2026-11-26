@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { positiveId, useBrowseParams } from '../hooks/useBrowseParams';
 import { fetchTeams, fetchTeamGames, fetchGameClips, gameClipUrl } from '../api';
 import type { BrowserTeam, TeamGame, GameClip, GameClipPage } from '../types';
 import { TEAM_ALIASES, cardColors, teamName, teamColors } from '../teamTheme';
@@ -19,9 +21,8 @@ export default function TeamBrowser() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [game, setGame] = useState<TeamGame | null>(null);
-
+  const { teamId, gameId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const controller = new AbortController();
@@ -31,31 +32,34 @@ export default function TeamBrowser() {
     return () => controller.abort();
   }, [attempt]);
 
-  const team = teams.find(item => item.id === selected) ?? teams[0];
+  const team = teams.find(item => item.id === positiveId(teamId));
 
   if (loading) return <div className="tb-loading pb-loading-fade" role="status">Loading teams…</div>;
   if (error) return <div role="alert" className="notice">{error} <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button></div>;
-  if (!team) return <p className="empty">No team film is available yet.</p>;
-  if (game) return <GameFilm key={`${team.id}:${game.id}`} team={team} game={game} onBack={() => setGame(null)} />;
-
+  if (teamId && !team) return <p className="empty">Team not found.</p>;
+  if (!teams.length) return <p className="empty">No team film is available yet.</p>;
+  const games = team && <TeamGames key={team.id} team={team} />;
+  if (gameId) return games;
 
   return <section aria-label="Team film library">
-    <header className="tb-heading"><div><h1>Teams</h1><p>Pick a team, a game, and browse clips.</p></div></header>
+    <header className="tb-heading"><div><h1>Teams</h1><p>Choose a team to see its games and watch clips.</p></div></header>
     <div className="tb-layout">
       <div className="tb-team-picker" role="group" aria-label="Choose a team">
         {teams.map(item => <button key={item.id} className="pb-team-tab pb-card" style={teamStyle(item)}
-          aria-label={teamName(item.abbr)} title={teamName(item.abbr)} aria-pressed={item.id === team.id}
-          onClick={() => setSelected(item.id)}>
+          aria-label={teamName(item.abbr)} title={teamName(item.abbr)} aria-pressed={item.id === team?.id}
+          onClick={() => navigate(`/teams/${item.id}`)}>
           <span className="pb-card-layer" aria-hidden="true" />
           <span className="pb-info">{TEAM_ALIASES[item.abbr] || item.abbr}</span>
         </button>)}
       </div>
-      <TeamGames key={team.id} team={team} onSelect={setGame} />
+      {games}
     </div>
   </section>;
 }
 
-function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: TeamGame) => void }) {
+function TeamGames({ team }: { team: BrowserTeam }) {
+  const { gameId } = useParams();
+  const navigate = useNavigate();
   const [games, setGames] = useState<TeamGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -82,11 +86,18 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
     return () => controller.abort();
   }, [team.id, attempt]);
 
+  if (gameId) {
+    const game = games.find(item => item.id === positiveId(gameId));
+    if (game) return <GameFilm key={game.id} team={team} game={game} />;
+    return <><Link className="pb-back" to={`/teams/${team.id}`}>All {team.abbr} games</Link>
+      {error ? <p role="alert">{error}</p> : <p role="status">{loading ? 'Loading game…' : 'Game not found for this team.'}</p>}</>;
+  }
+
   return <section className="tb-games" aria-label={`${teamName(team.abbr)} games`}>
     <div className="tb-games-heading"><div className="tb-team-title"><ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} /><h2>{teamName(team.abbr)}</h2></div><span>{team.games} games with film</span></div>
     {error && <div role="alert" className="notice">{error} <button onClick={() => { setError(''); setLoading(true); setAttempt(a => a + 1); }}>Retry</button></div>}
     <div className="tb-game-list">
-      {games.map(game => <button className="tb-game-card" key={game.id} onClick={() => onSelect(game)}>
+      {games.map(game => <button className="tb-game-card" key={game.id} onClick={() => navigate(`/teams/${team.id}/games/${game.id}`)}>
         <span className="tb-game-identity"><span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span></span>
         <span className="tb-game-count">{game.team_clips} team clips<small>{game.clips} in game</small></span>
       </button>)}
@@ -96,18 +107,23 @@ function TeamGames({ team, onSelect }: { team: BrowserTeam; onSelect: (game: Tea
   </section>;
 }
 
-
-function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; onBack: () => void }) {
-  const [players, setPlayers] = useState<number[]>([]);
-  const [clutch, setClutch] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
+function GameFilm({ team, game }: { team: BrowserTeam; game: TeamGame }) {
+  const { params, update } = useBrowseParams();
+  const clutch = params.get('clutch') === '1';
+  const categoryValues = params.getAll('category').join(',');
+  const playerValues = params.getAll('player').join(',');
+  const categories = useMemo(() => categoryValues.split(',').filter(value => GAME_FILTERS.some(item => item.category === value)), [categoryValues]);
+  const players = useMemo(() => playerValues.split(',').map(positiveId).filter(id => id !== null), [playerValues]);
+  const activeId = positiveId(params.get('clip'));
   const [active, setActive] = useState<GameClip | null>(null);
   const [playAttempt, setPlayAttempt] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  function play(clip: GameClip) { setPlayAttempt(n => n + 1); setActive(clip); setLoading(true); setError(''); }
+  function play(clip: GameClip) {
+    setActive(clip);
+    setPlayAttempt(n => n + 1);
+    update({ clip: String(clip.id) });
+  }
   return <section className="tb-film-page" style={teamStyle(team)} aria-label="Game film">
-    <button className="pb-back" onClick={onBack}>All {team.abbr} games</button>
+    <Link className="pb-back" to={`/teams/${team.id}`}>All {team.abbr} games</Link>
     <div className="tb-heading">
       <div className="tb-team-title">
         <ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} />
@@ -116,26 +132,46 @@ function GameFilm({ team, game, onBack }: { team: BrowserTeam; game: TeamGame; o
       <p>{dateLabel(game.date)} · {game.season}</p>
     </div>
     <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
-    <GamePlayerFilter team={team} gameId={game.id} selected={players} onChange={setPlayers} />
-    <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => setCategories([])}>{PLAY_LABELS.all}</button>
-      <button aria-pressed={clutch} className={clutch ? 'active' : ''} onClick={() => setClutch(!clutch)}>Clutch</button>
-      {GAME_FILTERS.map(({ category: key, label }) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => setCategories(prev => prev.includes(key) ? prev.filter(c => c !== key) : [...prev, key])}>{label}</button>)}
+    <GamePlayerFilter team={team} gameId={game.id} selected={players} onChange={ids => update({ player: ids.map(String) })} />
+    <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => update({ category: [] })}>{PLAY_LABELS.all}</button>
+      <button aria-pressed={clutch} className={clutch ? 'active' : ''} onClick={() => update({ clutch: clutch ? '' : '1' })}>Clutch</button>
+      {GAME_FILTERS.map(({ category: key, label }) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => update({ category: categories.includes(key) ? categories.filter(c => c !== key) : [...categories, key] })}>{label}</button>)}
     </div>
     <div className="pb-session tb-film-session">
       <section className="tb-preview" aria-label="Clip preview">
-        <div className="tb-video-stage">
-          {active ? <video key={`${active.id}:${playAttempt}`} controls playsInline autoPlay src={gameClipUrl(team.id, game.id, active.id)} onLoadedData={() => setLoading(false)} onError={() => { setLoading(false); setError('Could not load this clip. Select it again to retry.'); }} /> : <div className="pb-placeholder">Select a play to watch</div>}
-          {loading && <span className="tb-video-loading pb-loading-fade" role="status">Loading play…</span>}
-        </div>
-        {error && <p className="notice" role="alert">{error} <button onClick={() => setActive(null)}>Clear preview</button></p>}
-        {active && <div className="pb-now"><h2>{active.description}</h2><p>{periodLabel(active.period)} · {active.game_clock} · {active.duration_label}</p></div>}
+        {activeId ? <GamePreview key={`${activeId}:${playAttempt}`} team={team} game={game} clipId={activeId} selected={active?.id === activeId ? active : null} onClear={() => update({ clip: '' })} />
+          : <div className="tb-video-stage"><div className="pb-placeholder">Select a play to watch</div></div>}
       </section>
-      <GameClipList key={JSON.stringify([categories, clutch, players])} players={players} clutch={clutch} team={team} game={game} categories={categories} active={active} onPlay={play} />
+      <GameClipList key={JSON.stringify([categories, clutch, players])} players={players} clutch={clutch} team={team} game={game} categories={categories} active={activeId} onPlay={play} />
     </div>
   </section>;
 }
 
-function GameClipList({ team, game, players, categories, clutch, active, onPlay }: { team: BrowserTeam; game: TeamGame; players: number[]; categories: string[]; clutch: boolean; active: GameClip | null; onPlay: (clip: GameClip) => void }) {
+function GamePreview({ team, game, clipId, selected, onClear }: {
+  team: BrowserTeam; game: TeamGame; clipId: number; selected: GameClip | null; onClear: () => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [details, setDetails] = useState(selected);
+  useEffect(() => {
+    if (selected) return;
+    const controller = new AbortController();
+    fetchGameClips(team.id, game.id, [], false, [], null, controller.signal, clipId)
+      .then(page => { if (!controller.signal.aborted) setDetails(page.clips[0] ?? null); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [team.id, game.id, clipId, selected]);
+  return <>
+    <div className="tb-video-stage">
+      <video controls playsInline autoPlay src={gameClipUrl(team.id, game.id, clipId)} onLoadedData={() => setLoaded(true)} onError={() => setFailed(true)} />
+      {!loaded && !failed && <span className="tb-video-loading pb-loading-fade" role="status">Loading play…</span>}
+    </div>
+    {failed && <p className="notice" role="alert">Could not load this clip. Select it again to retry. <button onClick={onClear}>Clear preview</button></p>}
+    {details && <div className="pb-now"><h2>{details.description}</h2><p>{periodLabel(details.period)} · {details.game_clock} · {details.duration_label}</p></div>}
+  </>;
+}
+
+function GameClipList({ team, game, players, categories, clutch, active, onPlay }: { team: BrowserTeam; game: TeamGame; players: number[]; categories: string[]; clutch: boolean; active: number | null; onPlay: (clip: GameClip) => void }) {
   const [page, setPage] = useState<GameClipPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -161,7 +197,7 @@ function GameClipList({ team, game, players, categories, clutch, active, onPlay 
   return <section className="pb-plays tb-clip-panel" aria-label="Game plays"><div className="pb-queue-head"><div className="pb-plays-head"><h2>Plays</h2><span role="status">{page ? `${page.total} clips` : 'Loading plays…'}</span></div></div>
     <div className="pb-queue-scroll">
       {error && <div role="alert" className="notice">{error} {!page && <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button>}</div>}
-      {page?.clips.map(clip => <button key={clip.id} className={`pb-row ${active?.id === clip.id ? 'current' : ''}`} aria-pressed={active?.id === clip.id} onClick={() => onPlay(clip)}><span><strong>{clip.description}</strong><small>{periodLabel(clip.period)} · {clip.game_clock}</small></span><span className="pb-kind">{clip.categories.map(playLabel).join(' · ')}</span><span className="pb-duration">{clip.duration_label}</span></button>)}
+      {page?.clips.map(clip => <button key={clip.id} className={`pb-row ${active === clip.id ? 'current' : ''}`} aria-pressed={active === clip.id} onClick={() => onPlay(clip)}><span><strong>{clip.description}</strong><small>{periodLabel(clip.period)} · {clip.game_clock}</small></span><span className="pb-kind">{clip.categories.map(playLabel).join(' · ')}</span><span className="pb-duration">{clip.duration_label}</span></button>)}
       {loading && <div className="tb-loading pb-loading-fade" role="status">Loading plays…</div>}
       {!loading && page?.clips.length === 0 && <p className="empty">No plays match these filters.</p>}
       {page?.cursor && <button className="tb-more" disabled={loading} onClick={() => void more()}>Load more plays</button>}

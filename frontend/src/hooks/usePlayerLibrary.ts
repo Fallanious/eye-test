@@ -2,13 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPlayerLibrary } from '../api';
 import type { BrowserPlayer } from '../types';
 
-export function usePlayerLibrary() {
+export function usePlayerLibrary(query: string, team: string) {
   const [players, setPlayers] = useState<BrowserPlayer[]>([]);
   const [season, setSeason] = useState('');
   const [teams, setTeams] = useState<string[]>([]);
   const [total, setTotal] = useState(0);
-  const [query, setQuery] = useState('');
-  const [team, setTeam] = useState('');
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -85,9 +83,7 @@ export function usePlayerLibrary() {
     teams,
     total,
     query,
-    setQuery,
     team,
-    setTeam,
     loading,
     loadingMore,
     hasMore: cursor !== null,

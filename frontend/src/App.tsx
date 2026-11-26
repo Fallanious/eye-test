@@ -18,8 +18,9 @@ export default function App() {
     <main>
       <Routes>
         <Route path="/" element={<Navigate to="/players" replace />} />
-        <Route path="/players" element={<PlayerBrowser />} />
-        <Route path="/teams" element={<TeamBrowser />} />
+        <Route path="/players/:playerId?" element={<PlayerBrowser />} />
+        <Route path="/teams/:teamId?" element={<TeamBrowser />} />
+        <Route path="/teams/:teamId/games/:gameId" element={<TeamBrowser />} />
       </Routes>
     </main>
     <footer className="app-disclaimer">

@@ -1,4 +1,4 @@
-import type { PlayerLibrary, PlayerClipPage, TeamGame, BrowserTeam, GameClipPage } from "./types";
+import type { BrowserPlayer, PlayerLibrary, PlayerClipPage, TeamGame, BrowserTeam, GameClipPage } from "./types";
 const BASE = (import.meta.env.VITE_API_BASE ?? '').replace(/\/$/, '');
 async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, init);
@@ -14,6 +14,10 @@ export async function fetchPlayerLibrary(page?: { cursor?: number | null; team?:
   if (page?.q) params.set('q', page.q);
   const query = params.toString();
   return fetchJSON(`/api/players${query ? `?${query}` : ''}`);
+}
+
+export function fetchPlayer(id: number, signal: AbortSignal) {
+  return fetchJSON<BrowserPlayer>(`/api/players/${id}`, { signal });
 }
 
 export async function fetchPlayerClips(playerId: number, page?: { cursor?: number | null; role?: string; clutch?: boolean }): Promise<PlayerClipPage> {
@@ -42,8 +46,9 @@ export function fetchGamePlayers(teamId: number, gameId: number, signal: AbortSi
   return fetchJSON<{ players: GamePlayer[] }>(`/api/teams/${teamId}/games/${gameId}/players`, { signal });
 }
 
-export function fetchGameClips(teamId: number, gameId: number, categories: string[], clutch: boolean, players: number[], cursor?: number | null, signal?: AbortSignal) {
+export function fetchGameClips(teamId: number, gameId: number, categories: string[], clutch: boolean, players: number[], cursor?: number | null, signal?: AbortSignal, clipId?: number) {
   const params = new URLSearchParams({ scope: 'team', categories: categories.join(',') });
+  if (clipId) params.set('clip', String(clipId));
   for (const id of players) params.append('player', String(id));
   if (clutch) params.set('clutch', '1');
   if (cursor) params.set('cursor', String(cursor));

@@ -168,6 +168,11 @@ def list_game_clips(team_id, game_id):
         .order_by(Clip.video_start_s, Clip.play_index, Clip.id)
         .limit(10001)
     )
+    if 'clip' in request.args:
+        clip_id = request.args.get('clip', type=int)
+        if clip_id is None or not 1 <= clip_id <= 9223372036854775807:
+            return jsonify(error='Invalid clip ID.'), 400
+        statement = statement.where(Clip.id == clip_id)
     if request.args.get("clutch") == "1":
         statement = statement.where(Clip.is_clutch.is_(True))
     if player_ids:

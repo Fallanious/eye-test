@@ -1,131 +1,55 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { fetchPlayerClips } from '../api';
-import type { BrowserPlayer, PlayerClip, PlayerClipRole } from '../types';
+import type { PlayerClip } from '../types';
 
-export function usePlayerClips() {
-  const [selected, setSelected] = useState<BrowserPlayer | null>(null);
+export function usePlayerClips(playerId: number, role: string, clutch: boolean) {
   const [clips, setClips] = useState<PlayerClip[]>([]);
-  const [roles, setRoles] = useState<PlayerClipRole[]>([]);
-  const [role, setRole] = useState('');
   const [cursor, setCursor] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
-  const requestId = useRef(0);
-  const cursorRef = useRef<number | null>(null);
-  const loadingMoreRef = useRef(false);
-  const selectedRef = useRef<BrowserPlayer | null>(null);
-  const [clutch, setClutch] = useState(false);
-  const clutchRef = useRef(false);
-  const roleRef = useRef('');
+  const generation = useRef(0);
+  const busy = useRef(false);
 
-  function remember(nextCursor: number | null, nextRole: string) {
-    cursorRef.current = nextCursor;
-    roleRef.current = nextRole;
-    setCursor(nextCursor);
-    setRole(nextRole);
-  }
-
-  async function loadFirst(player: BrowserPlayer, nextRole: string, token: number) {
+  useEffect(() => {
+    const token = ++generation.current;
+    busy.current = false;
     setLoading(true);
-    try {
-      const data = await fetchPlayerClips(player.id, { role: nextRole, clutch: clutchRef.current });
-      if (requestId.current !== token) return;
-      setRoles(data.roles);
-      setClips(data.clips);
-      remember(data.cursor, nextRole);
-    } catch (err) {
-      if (requestId.current !== token) return;
-      setError(err instanceof Error ? err.message : 'Could not load plays.');
-    } finally {
-      if (requestId.current === token) setLoading(false);
-    }
-  }
-
-  async function open(player: BrowserPlayer) {
-    const token = ++requestId.current;
-    loadingMoreRef.current = false;
-    clutchRef.current = false;
-    setClutch(false);
-    selectedRef.current = player;
-    setSelected(player);
-    setClips([]);
-    setRoles([]);
-    setError('');
     setLoadingMore(false);
-    remember(null, '');
-    await loadFirst(player, '', token);
-  }
-
-  function chooseRole(nextRole: string, nextClutch = clutchRef.current) {
-    const player = selectedRef.current;
-    if (!player || (nextRole === roleRef.current && nextClutch === clutchRef.current)) return;
-    clutchRef.current = nextClutch;
-    setClutch(nextClutch);
-    const token = ++requestId.current;
-    loadingMoreRef.current = false;
+    setCursor(null);
     setClips([]);
     setError('');
-    setLoadingMore(false);
-    remember(null, nextRole);
-    void loadFirst(player, nextRole, token);
-  }
+    fetchPlayerClips(playerId, { role, clutch }).then(page => {
+      if (token !== generation.current) return;
+      setClips(page.clips);
+      setCursor(page.cursor);
+    }).catch(err => {
+      if (token === generation.current) setError(err.message || 'Could not load plays.');
+    }).finally(() => {
+      if (token === generation.current) setLoading(false);
+    });
+    return () => { generation.current = token + 1; };
+  }, [playerId, role, clutch]);
 
   const loadMore = useCallback(async () => {
-    const player = selectedRef.current;
-    const after = cursorRef.current;
-    if (!player || after == null || loadingMoreRef.current) return;
-    const token = requestId.current;
-    loadingMoreRef.current = true;
+    if (cursor == null || busy.current) return;
+    const token = generation.current;
+    busy.current = true;
     setLoadingMore(true);
     try {
-      const data = await fetchPlayerClips(player.id, { cursor: after, role: roleRef.current, clutch: clutchRef.current });
-      if (requestId.current !== token) return;
-      setClips(prev => {
-        const seen = new Set(prev.map(clip => `${clip.id}:${clip.role}`));
-        return [...prev, ...data.clips.filter(clip => !seen.has(`${clip.id}:${clip.role}`))];
-      });
-      remember(data.cursor, roleRef.current);
+      const page = await fetchPlayerClips(playerId, { role, clutch, cursor });
+      if (token !== generation.current) return;
+      setClips(previous => [...previous, ...page.clips]);
+      setCursor(page.cursor);
     } catch (err) {
-      if (requestId.current !== token) return;
-      setError(err instanceof Error ? err.message : 'Could not load plays.');
+      if (token === generation.current) setError(err instanceof Error ? err.message : 'Could not load plays.');
     } finally {
-      if (requestId.current === token) {
-        loadingMoreRef.current = false;
+      if (token === generation.current) {
+        busy.current = false;
         setLoadingMore(false);
       }
     }
-  }, []);
+  }, [playerId, role, clutch, cursor]);
 
-  function close() {
-    requestId.current += 1;
-    loadingMoreRef.current = false;
-    selectedRef.current = null;
-    setSelected(null);
-    setClips([]);
-    setRoles([]);
-    setError('');
-    setLoading(false);
-    setLoadingMore(false);
-    remember(null, '');
-  }
-
-  const shown = clips.filter(clip => !role || clip.role === role);
-
-  return {
-    selected,
-    clips,
-    shown,
-    roles,
-    role,
-    loading,
-    loadingMore,
-    hasMore: cursor !== null,
-    error,
-    open,
-    close,
-    clutch,
-    chooseRole,
-    loadMore,
-  };
+  return { clips, loading, loadingMore, hasMore: cursor !== null, error, loadMore };
 }

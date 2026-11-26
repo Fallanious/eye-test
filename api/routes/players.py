@@ -148,6 +148,29 @@ def clip_window(start_s, end_s):
     return start, end
 
 
+def player_cards(catalog):
+    return (catalog.outerjoin(ClipPlayer, ClipPlayer.player_id == Player.id)
+        .outerjoin(Clip, Clip.id == ClipPlayer.clip_id)
+        .options(
+            selectinload(Player.team),
+            with_expression(Player.clips, func.count(ClipPlayer.clip_id.distinct())),
+            with_expression(Player.games, func.count(Clip.game_id.distinct())),
+        )
+        .group_by(Player.id))
+
+
+@bp.get("/api/players/<int:player_id>")
+def get_player(player_id):
+    session, error = connect()
+    if error:
+        return error
+    with session:
+        player = session.scalar(player_cards(select(Player).where(Player.id == player_id)))
+        if player is None:
+            return jsonify(error="Player not found."), 404
+        return jsonify(player.to_dict())
+
+
 @bp.route("/api/players")
 def list_players():
     """One page of all catalog players, including those without clips."""
@@ -172,14 +195,7 @@ def list_players():
                 return jsonify(error="Cursor player was not found."), 404
             catalog = catalog.where(tuple_(*order) > tuple_(*mark))
         rows = session.scalars(
-            catalog.outerjoin(ClipPlayer, ClipPlayer.player_id == Player.id)
-            .outerjoin(Clip, Clip.id == ClipPlayer.clip_id)
-            .options(
-                selectinload(Player.team),
-                with_expression(Player.clips, func.count(ClipPlayer.clip_id.distinct())),
-                with_expression(Player.games, func.count(Clip.game_id.distinct())),
-            )
-            .group_by(Player.id).order_by(*order).limit(CLIP_PAGE + 1)
+            player_cards(catalog).order_by(*order).limit(CLIP_PAGE + 1)
         ).all()
         seasons = [season_label(value) for value in session.scalars(
             select(Game.season).join(Clip, Clip.game_id == Game.id).distinct().order_by(Game.season)
