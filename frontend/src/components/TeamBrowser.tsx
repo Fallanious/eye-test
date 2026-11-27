@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { positiveId, useBrowseParams } from '../hooks/useBrowseParams';
-import { fetchTeams, fetchTeamGames, fetchGameClips, gameClipUrl } from '../api';
+import { fetchTeams, fetchTeamGames, fetchGameClips, gameClipUrl, type GameScope } from '../api';
 import type { BrowserTeam, TeamGame, GameClip, GameClipPage } from '../types';
 import { TEAM_ALIASES, cardColors, teamName, teamColors } from '../teamTheme';
 import GamePlayerFilter from './GamePlayerFilter';
@@ -10,11 +10,13 @@ import { GAME_FILTERS, PLAY_LABELS, playLabel } from '../playLabels';
 
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not load film.'; }
 function dateLabel(date: string) { return new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); }
-function matchupLabel(game: TeamGame, team: BrowserTeam) { return game.home === team.abbr ? `vs ${teamName(game.away)}` : `at ${teamName(game.home)}`; }
+type FilmGame = Pick<TeamGame, 'id' | 'date' | 'season' | 'home' | 'away'>;
+type FilmTeam = Pick<BrowserTeam, 'id' | 'abbr' | 'name'>;
+function matchupLabel(game: FilmGame, team: FilmTeam) { return game.home === team.abbr ? `vs ${teamName(game.away)}` : `at ${teamName(game.home)}`; }
 function periodLabel(period: number) { return period <= 4 ? `Q${period}` : period === 5 ? 'OT' : `${period - 4}OT`; }
 
 // White and pale team colors need darkening when used as small text on paper.
-function teamStyle(team: BrowserTeam): CSSProperties { return cardColors(team.abbr); }
+function teamStyle(team: FilmTeam): CSSProperties { return cardColors(team.abbr); }
 
 export default function TeamBrowser() {
   const [teams, setTeams] = useState<BrowserTeam[]>([]);
@@ -107,7 +109,7 @@ function TeamGames({ team }: { team: BrowserTeam }) {
   </section>;
 }
 
-function GameFilm({ team, game }: { team: BrowserTeam; game: TeamGame }) {
+export function GameFilm({ team, game, scope = 'team', back }: { team: FilmTeam; game: FilmGame; scope?: GameScope; back?: string }) {
   const { params, update } = useBrowseParams();
   const clutch = params.get('clutch') === '1';
   const categoryValues = params.getAll('category').join(',');
@@ -123,32 +125,32 @@ function GameFilm({ team, game }: { team: BrowserTeam; game: TeamGame }) {
     update({ clip: String(clip.id) });
   }
   return <section className="tb-film-page" style={teamStyle(team)} aria-label="Game film">
-    <Link className="pb-back" to={`/teams/${team.id}`}>All {team.abbr} games</Link>
+    <Link className="pb-back" to={back ?? `/teams/${team.id}`}>{back ? 'Games' : `All ${team.abbr} games`}</Link>
     <div className="tb-heading">
       <div className="tb-team-title">
         <ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} />
-        <h1>{matchupLabel(game, team)}</h1>
+        <h1>{scope === 'both' ? `${teamName(game.away)} at ${teamName(game.home)}` : matchupLabel(game, team)}</h1>
       </div>
       <p>{dateLabel(game.date)} · {game.season}</p>
     </div>
-    <div className="tb-scope"><span>{teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
-    <GamePlayerFilter team={team} gameId={game.id} selected={players} onChange={ids => update({ player: ids.map(String) })} />
+    <div className="tb-scope"><span>{scope === 'both' ? 'Both teams' : teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>
+    <GamePlayerFilter scope={scope} team={team} gameId={game.id} selected={players} onChange={ids => update({ player: ids.map(String) })} />
     <div className="pb-types tb-categories"><button className={!categories.length ? 'active' : ''} aria-pressed={!categories.length} onClick={() => update({ category: [] })}>{PLAY_LABELS.all}</button>
       <button aria-pressed={clutch} className={clutch ? 'active' : ''} onClick={() => update({ clutch: clutch ? '' : '1' })}>Clutch</button>
       {GAME_FILTERS.map(({ category: key, label }) => <button key={key} className={categories.includes(key) ? 'active' : ''} aria-pressed={categories.includes(key)} onClick={() => update({ category: categories.includes(key) ? categories.filter(c => c !== key) : [...categories, key] })}>{label}</button>)}
     </div>
     <div className="pb-session tb-film-session">
       <section className="tb-preview" aria-label="Clip preview">
-        {activeId ? <GamePreview key={`${activeId}:${playAttempt}`} team={team} game={game} clipId={activeId} selected={active?.id === activeId ? active : null} onClear={() => update({ clip: '' })} />
+        {activeId ? <GamePreview scope={scope} key={`${activeId}:${playAttempt}`} team={team} game={game} clipId={activeId} selected={active?.id === activeId ? active : null} onClear={() => update({ clip: '' })} />
           : <div className="tb-video-stage"><div className="pb-placeholder">Select a play to watch</div></div>}
       </section>
-      <GameClipList key={JSON.stringify([categories, clutch, players])} players={players} clutch={clutch} team={team} game={game} categories={categories} active={activeId} onPlay={play} />
+      <GameClipList scope={scope} key={JSON.stringify([categories, clutch, players])} players={players} clutch={clutch} team={team} game={game} categories={categories} active={activeId} onPlay={play} />
     </div>
   </section>;
 }
 
-function GamePreview({ team, game, clipId, selected, onClear }: {
-  team: BrowserTeam; game: TeamGame; clipId: number; selected: GameClip | null; onClear: () => void;
+function GamePreview({ scope, team, game, clipId, selected, onClear }: {
+  scope: GameScope; team: FilmTeam; game: FilmGame; clipId: number; selected: GameClip | null; onClear: () => void;
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -156,11 +158,11 @@ function GamePreview({ team, game, clipId, selected, onClear }: {
   useEffect(() => {
     if (selected) return;
     const controller = new AbortController();
-    fetchGameClips(team.id, game.id, [], false, [], null, controller.signal, clipId)
+    fetchGameClips(team.id, game.id, [], false, [], null, controller.signal, clipId, scope)
       .then(page => { if (!controller.signal.aborted) setDetails(page.clips[0] ?? null); })
       .catch(() => {});
     return () => controller.abort();
-  }, [team.id, game.id, clipId, selected]);
+  }, [team.id, game.id, clipId, selected, scope]);
   return <>
     <div className="tb-video-stage">
       <video controls playsInline autoPlay src={gameClipUrl(team.id, game.id, clipId)} onLoadedData={() => setLoaded(true)} onError={() => setFailed(true)} />
@@ -171,7 +173,7 @@ function GamePreview({ team, game, clipId, selected, onClear }: {
   </>;
 }
 
-function GameClipList({ team, game, players, categories, clutch, active, onPlay }: { team: BrowserTeam; game: TeamGame; players: number[]; categories: string[]; clutch: boolean; active: number | null; onPlay: (clip: GameClip) => void }) {
+function GameClipList({ scope, team, game, players, categories, clutch, active, onPlay }: { scope: GameScope; team: FilmTeam; game: FilmGame; players: number[]; categories: string[]; clutch: boolean; active: number | null; onPlay: (clip: GameClip) => void }) {
   const [page, setPage] = useState<GameClipPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -181,16 +183,16 @@ function GameClipList({ team, game, players, categories, clutch, active, onPlay 
   useEffect(() => {
     alive.current = true;
     const controller = new AbortController();
-    fetchGameClips(team.id, game.id, categories, clutch, players, null, controller.signal)
+    fetchGameClips(team.id, game.id, categories, clutch, players, null, controller.signal, undefined, scope)
       .then(data => { setPage(data); setError(''); })
       .catch(err => { if (!controller.signal.aborted) setError(message(err)); })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => { alive.current = false; controller.abort(); };
-  }, [team.id, game.id, categories, clutch, players, attempt]);
+  }, [team.id, game.id, categories, clutch, players, attempt, scope]);
   async function more() {
     if (!page?.cursor || busy.current) return;
     busy.current = true; setLoading(true); setError('');
-    try { const data = await fetchGameClips(team.id, game.id, categories, clutch, players, page.cursor); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
+    try { const data = await fetchGameClips(team.id, game.id, categories, clutch, players, page.cursor, undefined, undefined, scope); if (alive.current) setPage(prev => ({ ...data, clips: [...(prev?.clips ?? []), ...data.clips] })); }
     catch (err) { if (alive.current) setError(message(err)); }
     finally { busy.current = false; if (alive.current) setLoading(false); }
   }

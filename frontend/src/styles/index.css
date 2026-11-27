@@ -1455,3 +1455,38 @@ button.tb-game-card:focus-visible {
   margin: 0;
   accent-color: var(--card-primary);
 }
+
+.games-toolbar, .games-paging { display: flex; align-items: center; gap: 8px; }
+.games-toolbar { justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; }
+.games-paging button { font-size: 20px; line-height: 1; }
+.games-rail {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #b4afa6 transparent;
+}
+.games-week {
+  flex: 0 0 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  padding: 3px 0 8px;
+  scroll-snap-align: start;
+}
+.games-week button { display: grid; justify-items: center; padding: 8px 0; background: #f6f3ee; border-color: #cec9c1; }
+.games-week button:focus-visible { outline-offset: -3px; }
+.games-week button[aria-pressed="true"] { background: #242426; border-color: #242426; color: white; }
+.games-week strong { font: 800 22px Manrope, sans-serif; }
+.games-day-heading { margin: 20px 0 4px; }
+.games-matchup { text-decoration: none; color: inherit; }
+.games-status { display: inline-flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 5px; border: 1px solid #bfbab1; color: #605c57; white-space: nowrap; font-weight: 600; font-size: 12px; }
+.games-status.available { color: #185337; background: #d6eadb; border-color: #bed6c5; }
+@media (max-width: 570px) {
+  .games-week { gap: 2px; }
+  .games-matchup { padding: 14px 0; gap: 8px; }
+  .app-header { gap: 14px; }
+  .app-tabs { gap: 14px; }
+}

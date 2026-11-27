@@ -117,20 +117,22 @@ def game_for_team(team_id, game_id):
 
 @bp.get('/api/teams/<int:team_id>/games/<int:game_id>/players')
 def list_game_players(team_id, game_id):
+    scope = request.args.get('scope', 'team')
+    if scope not in ('team', 'both'):
+        return jsonify(error='Invalid player scope.'), 400
     session, error = connect()
     if error:
         return error
-    # A link to this team's player also establishes ownership for a legacy
-    # clip with no recorded team. Explicitly opposing clips stay excluded.
     roster = (
         select(Player.id, Player.full_name)
         .join(ClipPlayer, ClipPlayer.player_id == Player.id)
         .join(Clip, Clip.id == ClipPlayer.clip_id)
-        .where(Player.team_id == team_id, Clip.game_id == game_id,
-               or_(Clip.team_id == team_id, Clip.team_id.is_(None)))
+        .where(Clip.game_id == game_id)
         .distinct()
         .order_by(Player.full_name, Player.id)
     )
+    if scope == 'team':
+        roster = roster.where(Player.team_id == team_id, or_(Clip.team_id == team_id, Clip.team_id.is_(None)))
     with session:
         if session.scalar(game_for_team(team_id, game_id)) is None:
             return jsonify(error='Game not found for this team.'), 404
@@ -176,13 +178,11 @@ def list_game_clips(team_id, game_id):
     if request.args.get("clutch") == "1":
         statement = statement.where(Clip.is_clutch.is_(True))
     if player_ids:
-        statement = statement.where(
-            select(ClipPlayer.clip_id)
-            .join(Player, Player.id == ClipPlayer.player_id)
-            .where(ClipPlayer.clip_id == Clip.id, Player.team_id == team_id,
-                   ClipPlayer.player_id.in_(player_ids))
-            .exists()
-        )
+        links = select(ClipPlayer.clip_id).where(
+            ClipPlayer.clip_id == Clip.id, ClipPlayer.player_id.in_(player_ids))
+        if scope == 'team':
+            links = links.join(Player, Player.id == ClipPlayer.player_id).where(Player.team_id == team_id)
+        statement = statement.where(links.exists())
     if scope == 'team':
         statement = statement.where(team_involved(team_id))
     with session:

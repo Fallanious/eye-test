@@ -51,3 +51,15 @@ export interface BrowserTeam { id: number; abbr: string; name: string; games: nu
 export interface TeamGame { id: number; date: string; season: string; home: string; away: string; clips: number; team_clips: number }
 export interface GameClip { id: number; description: string; period: number; game_clock: string; duration_label: string; categories: string[] }
 export interface GameClipPage { clips: GameClip[]; total: number; categories: { key: string; label: string; count: number }[]; cursor: number | null }
+
+export interface ScheduledGame {
+  key: string;
+  id: number | null;
+  home_id: number | null;
+  home: string;
+  away: string;
+  season: string;
+  status: string;
+  start: string | null;
+  has_clips: boolean;
+}

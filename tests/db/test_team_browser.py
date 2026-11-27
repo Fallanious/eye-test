@@ -112,6 +112,8 @@ def test_game_players_filter_before_pagination(client, postgres_url):
     assert client.get('/api/teams/3/games/1/players').status_code == 404
     assert client.get(base + '/clips?player=invalid').status_code == 400
     assert client.get(base + '/clips?player=3').json['total'] == 0
+    assert client.get(base + '/clips?scope=both&player=3').json['total'] == 1
+    assert {p['id'] for p in client.get(base + '/players?scope=both').json['players']} == {1, 2, 3}
     filtered = client.get(base + '/clips?player=2&categories=three_pointer&clutch=1').json
     assert [clip['id'] for clip in filtered['clips']] == [3]
     url = base + '/clips?player=1&player=2'
@@ -119,3 +121,28 @@ def test_game_players_filter_before_pagination(client, postgres_url):
     assert first['total'] == 35
     second = client.get(url + f"&cursor={first['cursor']}").json
     assert [clip['id'] for clip in first['clips'] + second['clips']] == list(range(1, 36))
+
+
+def test_schedule_merges_feed_and_catalog_by_matchup(client, postgres_url, monkeypatch):
+    from routes import games
+    fixtures = [
+        dict(key='one', home='BKN', away='GS', status='Final', start=None),
+        dict(key='two', home='BOS', away='LAL', status='Final', start=None),
+    ]
+    monkeypatch.setattr(games, 'scoreboard', lambda *_: fixtures)
+    with psycopg.connect(postgres_url) as conn:
+        conn.execute("UPDATE teams SET abbr='BRK' WHERE id=1")
+        conn.execute("UPDATE teams SET abbr='GSW' WHERE id=2")
+        conn.execute("UPDATE games SET s3_key='games/one.mkv' WHERE id=1")
+    response = client.get('/api/games?date=2026-01-01').json
+    assert not response['incomplete']
+    one, two = response['games']
+    assert (one['id'], one['away'], one['home'], one['has_clips']) == (1, 'GSW', 'BKN', True)
+    assert two['id'] is None and not two['has_clips']
+
+    def offline(*_):
+        raise TimeoutError
+    monkeypatch.setattr(games, 'scoreboard', offline)
+    fallback = client.get('/api/games?date=2026-01-01').json
+    assert fallback['incomplete'] and fallback['games'][0]['id'] == 1
+    assert client.get('/api/games?date=invalid').status_code == 400

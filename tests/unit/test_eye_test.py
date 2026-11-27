@@ -29,7 +29,7 @@ def test_browser_origin_is_echoed_only_when_listed(tmp_path):
 def test_only_public_routes_are_registered(tmp_path):
     app = make_app(tmp_path)
     endpoints = {rule.rule for rule in app.url_map.iter_rules() if rule.rule.startswith('/api/')}
-    assert endpoints == {'/api/players', '/api/players/<int:player_id>', '/api/players/<int:player_id>/clips',
+    assert endpoints == {'/api/games', '/api/players', '/api/players/<int:player_id>', '/api/players/<int:player_id>/clips',
                          '/api/players/<int:player_id>/clips/<int:clip_id>',
                          '/api/teams', '/api/teams/<int:team_id>/games',
                          '/api/teams/<int:team_id>/games/<int:game_id>/players',

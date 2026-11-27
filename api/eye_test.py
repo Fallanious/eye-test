@@ -13,6 +13,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from public_limits import RateLimits, RedisRateLimits, LimiterUnavailable
 from routes.players import bp
+from routes.games import bp as games_bp
 from routes.teams import bp as teams_bp
 
 
@@ -60,6 +61,7 @@ def create_app(overrides=None):
     app.extensions['rate_limiter'] = limiter
     app.register_blueprint(bp)
     app.register_blueprint(teams_bp)
+    app.register_blueprint(games_bp)
 
     if any(rule.methods - {'GET', 'HEAD', 'OPTIONS'} for rule in app.url_map.iter_rules()
            if rule.rule.startswith('/api/')):
@@ -123,6 +125,8 @@ def create_app(overrides=None):
     if (dist / 'index.html').is_file():
         @app.get('/')
         @app.get('/players', strict_slashes=False)
+        @app.get('/games', strict_slashes=False)
+        @app.get('/games/<day>/<matchup>', strict_slashes=False)
         @app.get('/teams', strict_slashes=False)
         @app.get('/players/<int:player_id>', strict_slashes=False)
         @app.get('/teams/<int:team_id>', strict_slashes=False)

@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { fetchGamePlayers, type GamePlayer } from '../api';
+import { fetchGamePlayers, type GamePlayer, type GameScope } from '../api';
 import type { BrowserTeam } from '../types';
 
 type Props = {
-  team: BrowserTeam;
+  team: Pick<BrowserTeam, 'id' | 'name'>;
+  scope?: GameScope;
   gameId: number;
   selected: number[];
   onChange: (ids: number[]) => void;
@@ -13,7 +14,7 @@ function searchableName(value: string) {
   return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 }
 
-export default function GamePlayerFilter({ team, gameId, selected, onChange }: Props) {
+export default function GamePlayerFilter({ team, gameId, selected, onChange, scope = 'team' }: Props) {
   const [roster, setRoster] = useState<GamePlayer[] | null>(null);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
@@ -25,11 +26,11 @@ export default function GamePlayerFilter({ team, gameId, selected, onChange }: P
 
   useEffect(() => {
     const controller = new AbortController();
-    fetchGamePlayers(team.id, gameId, controller.signal)
+    fetchGamePlayers(team.id, gameId, controller.signal, scope)
       .then(data => { if (!controller.signal.aborted) setRoster(data.players); })
       .catch(err => { if (!controller.signal.aborted) setError(err.message || 'Could not load players.'); });
     return () => controller.abort();
-  }, [team.id, gameId, attempt]);
+  }, [team.id, gameId, attempt, scope]);
 
   useEffect(() => {
     if (!open) return;
@@ -62,8 +63,8 @@ export default function GamePlayerFilter({ team, gameId, selected, onChange }: P
         onClick={() => { setSearch(''); setOpen(!open); }}>
         Players <span aria-hidden="true">{open ? '▴' : '▾'}</span>
       </button>
-      {open && <section id={panelId} className="tb-player-menu" aria-label={team.name + ' players'}>
-        <strong>{team.name} players</strong>
+      {open && <section id={panelId} className="tb-player-menu" aria-label={scope === 'both' ? 'Game players' : team.name + ' players'}>
+        <strong>{scope === 'both' ? 'Game' : team.name} players</strong>
         <input autoFocus type="search" placeholder="Search players" aria-label="Search players"
           value={search} onChange={event => setSearch(event.target.value)} />
         {error ? <div role="alert">{error} <button onClick={() => { setError(''); setAttempt(n => n + 1); }}>Retry</button></div>

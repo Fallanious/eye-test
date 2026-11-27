@@ -1,4 +1,5 @@
 import { Link, Navigate, NavLink, Route, Routes } from 'react-router';
+import GamesBrowser from './components/GamesBrowser';
 import TeamBrowser from './components/TeamBrowser';
 import PlayerBrowser from './components/PlayerBrowser';
 import ClipStack from './components/ClipStack';
@@ -13,12 +14,15 @@ export default function App() {
       <nav className="app-tabs" aria-label="Browse film">
         <NavLink className="app-section" to="/players">Library</NavLink>
         <NavLink className="app-section" to="/teams">Teams</NavLink>
+        <NavLink className="app-section" to="/games">Games</NavLink>
       </nav>
     </header>
     <main>
       <Routes>
         <Route path="/" element={<Navigate to="/players" replace />} />
         <Route path="/players/:playerId?" element={<PlayerBrowser />} />
+        <Route path="/games" element={<GamesBrowser />} />
+        <Route path="/games/:day/:matchup" element={<GamesBrowser />} />
         <Route path="/teams/:teamId?" element={<TeamBrowser />} />
         <Route path="/teams/:teamId/games/:gameId" element={<TeamBrowser />} />
       </Routes>
