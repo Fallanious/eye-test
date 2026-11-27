@@ -2,7 +2,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { fetchSchedule } from '../api';
 import type { ScheduledGame } from '../types';
-import { teamName } from '../teamTheme';
+import { teamColors, teamName } from '../teamTheme';
+import ClipStack from './ClipStack';
 import { GameFilm } from './TeamBrowser';
 
 const DAY = 86400000;
@@ -92,6 +93,13 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
   </>;
 }
 
+function MatchupTeam({ team }: { team: string }) {
+  return <span className="games-team">
+    <ClipStack className="pb-team-mark" colors={teamColors(team)} />
+    {teamName(team)}
+  </span>;
+}
+
 function ClipStatus({ available }: { available: boolean }) {
   return <span className={'games-status' + (available ? ' available' : '')}><span aria-hidden="true">{available ? '▶' : '−'}</span> {available ? 'Clips available' : 'No clips'}</span>;
 }
@@ -137,7 +145,10 @@ export default function GamesBrowser() {
     <h2 className="games-day-heading">{format(day, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h2>
     {loading || <>{warning}{current?.games.map(game => <Link key={game.key} className="tb-game-card games-matchup"
       to={'/games/' + date + '/' + game.away + '-at-' + game.home + '?week=' + iso(week)}>
-      <span className="tb-game-identity"><span><strong>{teamName(game.away)} at {teamName(game.home)}</strong><small>{status(game)}</small></span></span>
+      <span className="games-matchup-info">
+        <strong className="games-opponents"><MatchupTeam team={game.away} /> <span className="games-at">at</span> <MatchupTeam team={game.home} /></strong>
+        {status(game) && <small>{status(game)}</small>}
+      </span>
       <ClipStatus available={game.has_clips} />
     </Link>)}{!current?.games.length && !current?.incomplete && <p>No games scheduled.</p>}</>}
   </section>;

@@ -1229,8 +1229,8 @@ main {
   transition: transform .18s ease, box-shadow .18s ease;
 }
 
-button.tb-game-card:hover,
-button.tb-game-card:focus-visible {
+:is(button, a).tb-game-card:hover,
+:is(button, a).tb-game-card:focus-visible {
   transform: translateY(-4px);
   background: var(--page-surface);
   box-shadow: 0 8px 18px #17171912;
@@ -1392,8 +1392,8 @@ button.tb-game-card:focus-visible {
     transition: none;
   }
 
-  button.tb-game-card:hover,
-  button.tb-game-card:focus-visible {
+  :is(button, a).tb-game-card:hover,
+  :is(button, a).tb-game-card:focus-visible {
     transform: none;
   }
 }
@@ -1482,11 +1482,17 @@ button.tb-game-card:focus-visible {
 .games-week strong { font: 800 22px Manrope, sans-serif; }
 .games-day-heading { margin: 20px 0 4px; }
 .games-matchup { text-decoration: none; color: inherit; }
+.games-matchup-info { min-width: 0; }
+.games-matchup .games-opponents, .games-team { display: flex; align-items: center; gap: 8px; }
+.games-opponents { flex-wrap: wrap; }
+.games-at { color: #706b65; font-size: 13px; font-weight: 500; }
 .games-status { display: inline-flex; gap: 6px; align-items: center; padding: 5px 9px; border-radius: 5px; border: 1px solid #bfbab1; color: #605c57; white-space: nowrap; font-weight: 600; font-size: 12px; }
 .games-status.available { color: #185337; background: #d6eadb; border-color: #bed6c5; }
 @media (max-width: 570px) {
   .games-week { gap: 2px; }
-  .games-matchup { padding: 14px 0; gap: 8px; }
+  .games-matchup { padding: 14px 4px; gap: 8px; }
+  .games-matchup .games-opponents { display: grid; gap: 3px; }
+  .games-at { margin-left: 36px; }
   .app-header { gap: 14px; }
   .app-tabs { gap: 14px; }
 }
