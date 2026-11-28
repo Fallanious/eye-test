@@ -5,7 +5,7 @@ import type { BrowserPlayer } from '../types';
 export function usePlayerLibrary(query: string, team: string) {
   const [players, setPlayers] = useState<BrowserPlayer[]>([]);
   const [season, setSeason] = useState('');
-  const [teams, setTeams] = useState<string[]>([]);
+  const [teams, setTeams] = useState<string[] | null>(null);
   const [total, setTotal] = useState(0);
   const [cursor, setCursor] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);

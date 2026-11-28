@@ -12,7 +12,7 @@ export default function App() {
         <span className="brand-wordmark" aria-hidden="true"><span>EYE</span><span>TEST</span></span>
       </Link>
       <nav className="app-tabs" aria-label="Browse film">
-        <NavLink className="app-section" to="/players">Library</NavLink>
+        <NavLink className="app-section" to="/players">Players</NavLink>
         <NavLink className="app-section" to="/teams">Teams</NavLink>
         <NavLink className="app-section" to="/games">Games</NavLink>
       </nav>

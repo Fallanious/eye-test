@@ -6,6 +6,8 @@ import { usePlayerClips } from '../hooks/usePlayerClips';
 import { usePlayerLibrary } from '../hooks/usePlayerLibrary';
 import type { BrowserPlayer } from '../types';
 import ClipStack from './ClipStack';
+import TeamPickerPreview from './TeamPickerPreview';
+import LoadingCrossfade from './LoadingCrossfade';
 
 import { teamName, teamColors, cardColors, TEAM_ALIASES } from '../teamTheme';
 
@@ -82,6 +84,8 @@ function PlayerLibrary() {
     return () => observer.disconnect();
   }, [morePlayers, library.players.length, loadMorePlayers]);
 
+  const previewCount = library.loading && !library.players.length ? 6 : library.loadingMore ? 3 : 0;
+
   return (
     <>
       <header className="pb-head">
@@ -97,18 +101,20 @@ function PlayerLibrary() {
       <div className="toolbar pb-toolbar">
         <input aria-label="Search players" placeholder="Search players…" value={library.query} onChange={event => update({ q: event.target.value }, true)} />
       </div>
-      <div className="pb-team-tabs" role="group" aria-label="Browse by team">
-        <button className="pb-team-tab pb-card" style={cardColors('')} aria-pressed={!library.team} onClick={() => update({ team: '' })}>
-          <span className="pb-card-layer" aria-hidden="true" />
-          <span className="pb-info">All</span>
-        </button>
-        {library.teams.map(code => (
-          <button key={code} className="pb-team-tab pb-card" style={cardColors(code)} aria-pressed={library.team === code} aria-label={teamName(code)} title={teamName(code)} onClick={() => update({ team: code })}>
+      <LoadingCrossfade ready={library.teams !== null || !library.loading} preview={<TeamPickerPreview filters />}>
+        <div className="pb-team-tabs" role="group" aria-label="Browse by team">
+          <button className="pb-team-tab pb-card" style={cardColors('')} aria-pressed={!library.team} onClick={() => update({ team: '' })}>
             <span className="pb-card-layer" aria-hidden="true" />
-            <span className="pb-info">{TEAM_ALIASES[code] || code}</span>
+            <span className="pb-info">All</span>
           </button>
-        ))}
-      </div>
+          {library.teams?.map(code => (
+            <button key={code} className="pb-team-tab pb-card" style={cardColors(code)} aria-pressed={library.team === code} aria-label={teamName(code)} title={teamName(code)} onClick={() => update({ team: code })}>
+              <span className="pb-card-layer" aria-hidden="true" />
+              <span className="pb-info">{TEAM_ALIASES[code] || code}</span>
+            </button>
+          ))}
+        </div>
+      </LoadingCrossfade>
       {library.team && <div className="pb-team-heading">
         <ClipStack className="pb-team-mark" colors={teamColors(library.team)} />
         <h2>{teamName(library.team)}</h2>
@@ -116,29 +122,18 @@ function PlayerLibrary() {
         <span role="status">{library.loading ? 'Loading…' : countLabel(library.total, 'player', 'players')}</span>
       </div>}
       {library.error && <p role="alert" className="notice">{library.error}</p>}
-      {library.loading && !library.players.length ? (
-        <div className="pb-grid" aria-hidden="true">
-          {Array.from({ length: 6 }, (_, index) => <PlayerSkeleton key={index} index={index} />)}
-        </div>
-      ) : (
-        <div className="pb-grid">
-          {library.players.map(player => (
-            <Link className="pb-card" style={cardColors(player.team)} key={player.id} to={{ pathname: `/players/${player.id}`, search: params.toString() }} onClick={() => window.scrollTo({ top: 0 })}>
+      <div className="pb-grid pb-player-results" aria-busy={library.loading || library.loadingMore}>
+        {Array.from({ length: library.players.length + previewCount }, (_, index) => {
+          // Keep the slot mounted when its preview becomes a player, including appended pages.
+          const player = library.players[index];
+          return <LoadingCrossfade key={index} ready={!!player} preview={<PlayerSkeleton index={index} />}>
+            {player && <Link className="pb-card" style={cardColors(player.team)} to={{ pathname: `/players/${player.id}`, search: params.toString() }} onClick={() => window.scrollTo({ top: 0 })}>
               <span className="pb-card-layer" aria-hidden="true" />
-              <PlayerCard
-                player={player}
-                broken={!!broken[player.id]}
-                onBroken={() => markBroken(player.id)}
-              />
-            </Link>
-          ))}
-        </div>
-      )}
-      {library.loadingMore && (
-        <div className="pb-grid" aria-hidden="true">
-          {Array.from({ length: 3 }, (_, index) => <PlayerSkeleton key={index} index={index} />)}
-        </div>
-      )}
+              <PlayerCard player={player} broken={!!broken[player.id]} onBroken={() => markBroken(player.id)} />
+            </Link>}
+          </LoadingCrossfade>;
+        })}
+      </div>
       {library.hasMore && <div ref={playersEndRef} className="pb-more" aria-hidden="true" />}
       {!library.loading && !library.loadingMore && !library.players.length && <p className="empty">{library.query || library.team ? 'No players match your search.' : 'No players available yet.'}</p>}
     </>

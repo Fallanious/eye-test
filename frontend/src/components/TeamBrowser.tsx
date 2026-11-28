@@ -6,6 +6,9 @@ import type { BrowserTeam, TeamGame, GameClip, GameClipPage } from '../types';
 import { TEAM_ALIASES, cardColors, teamName, teamColors } from '../teamTheme';
 import GamePlayerFilter from './GamePlayerFilter';
 import ClipStack from './ClipStack';
+import TeamPickerPreview from './TeamPickerPreview';
+import LoadingCrossfade from './LoadingCrossfade';
+import GameLoadingRows from './GameLoadingRows';
 import { GAME_FILTERS, PLAY_LABELS, playLabel } from '../playLabels';
 
 function message(error: unknown) { return error instanceof Error ? error.message : 'Could not load film.'; }
@@ -36,24 +39,26 @@ export default function TeamBrowser() {
 
   const team = teams.find(item => item.id === positiveId(teamId));
 
-  if (loading) return <div className="tb-loading pb-loading-fade" role="status">Loading teams…</div>;
-  if (error) return <div role="alert" className="notice">{error} <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button></div>;
-  if (teamId && !team) return <p className="empty">Team not found.</p>;
-  if (!teams.length) return <p className="empty">No team film is available yet.</p>;
+  if (loading && gameId) return <GameLoadingRows matchup count={1} />;
+  if (!loading && error) return <div role="alert" className="notice">{error} <button onClick={() => { setLoading(true); setAttempt(a => a + 1); }}>Retry</button></div>;
+  if (!loading && teamId && !team) return <p className="empty">Team not found.</p>;
+  if (!loading && !teams.length) return <p className="empty">No team film is available yet.</p>;
   const games = team && <TeamGames key={team.id} team={team} />;
   if (gameId) return games;
 
   return <section aria-label="Team film library">
     <header className="tb-heading"><div><h1>Teams</h1><p>Choose a team to see its games and watch clips.</p></div></header>
     <div className="tb-layout">
-      <div className="tb-team-picker" role="group" aria-label="Choose a team">
-        {teams.map(item => <button key={item.id} className="pb-team-tab pb-card" style={teamStyle(item)}
-          aria-label={teamName(item.abbr)} title={teamName(item.abbr)} aria-pressed={item.id === team?.id}
-          onClick={() => navigate(`/teams/${item.id}`)}>
-          <span className="pb-card-layer" aria-hidden="true" />
-          <span className="pb-info">{TEAM_ALIASES[item.abbr] || item.abbr}</span>
-        </button>)}
-      </div>
+      <LoadingCrossfade ready={!loading} preview={<TeamPickerPreview />}>
+        <div className="tb-team-picker" role="group" aria-label="Choose a team">
+          {teams.map(item => <button key={item.id} className="pb-team-tab pb-card" style={teamStyle(item)}
+            aria-label={teamName(item.abbr)} title={teamName(item.abbr)} aria-pressed={item.id === team?.id}
+            onClick={() => navigate(`/teams/${item.id}`)}>
+            <span className="pb-card-layer" aria-hidden="true" />
+            <span className="pb-info">{TEAM_ALIASES[item.abbr] || item.abbr}</span>
+          </button>)}
+        </div>
+      </LoadingCrossfade>
       {games}
     </div>
   </section>;
@@ -103,7 +108,7 @@ function TeamGames({ team }: { team: BrowserTeam }) {
         <span className="tb-game-identity"><span><strong>{matchupLabel(game, team)}</strong><small>{dateLabel(game.date)} · {game.home === team.abbr ? 'Home' : 'Away'} · {game.season}</small></span></span>
         <span className="tb-game-count">{game.team_clips} team clips<small>{game.clips} in game</small></span>
       </button>)}
-      {loading && Array.from({ length: 3 }, (_, i) => <div key={i} className="tb-game-card tb-game-skeleton" aria-hidden="true"><span className="pb-skeleton pb-skeleton-line" /><span className="pb-skeleton pb-skeleton-line short" /></div>)}
+      {loading && <GameLoadingRows />}
     </div>
     {!loading && !error && !games.length && <p className="empty">No games with clips for this team.</p>}
   </section>;

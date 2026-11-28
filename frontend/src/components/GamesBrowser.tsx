@@ -4,6 +4,8 @@ import { fetchClipDates, fetchSchedule } from '../api';
 import type { ScheduledGame } from '../types';
 import { teamColors, teamName } from '../teamTheme';
 import ClipStack from './ClipStack';
+import LoadingCrossfade from './LoadingCrossfade';
+import GameLoadingRows from './GameLoadingRows';
 import { GameFilm } from './TeamBrowser';
 
 const DAY = 86400000;
@@ -157,9 +159,10 @@ export default function GamesBrowser() {
   const current = result?.date === date ? result : null;
   const retry = <button onClick={() => { setFailure(null); setAttempt(n => n + 1); }}>Retry</button>;
   const warning = current?.incomplete && <p role="status" className="notice">The full NBA schedule is unavailable. Showing catalog games. {retry}</p>;
-  const loading = failure?.date === date ? <p role="alert" className="notice">{failure.message} {retry}</p>
-    : !current ? <p role="status">Loading schedule…</p> : null;
+  const errorNotice = failure?.date === date ? <p role="alert" className="notice">{failure.message} {retry}</p>
+    : null;
   if (matchup) {
+    const loading = errorNotice || (!current && <GameLoadingRows matchup count={1} />);
     const game = current?.games.find(g => g.away + '-at-' + g.home === matchup);
     const back = '/games?date=' + date + '&week=' + iso(week);
     if (game?.has_clips && game.id && game.home_id) return <GameFilm key={game.id} scope="both" back={back}
@@ -173,7 +176,7 @@ export default function GamesBrowser() {
     <WeekStrip selected={day} initialWeek={week} onWeek={value => setParams({ date, week: iso(value) }, { replace: true })}
       onSelect={value => setParams({ date: iso(value), week: iso(monday(value)) }, { replace: true })} />
     <h2 className="games-day-heading">{format(day, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h2>
-    {loading || <>{warning}{current?.games.map(game => {
+    {errorNotice || <LoadingCrossfade preview={<GameLoadingRows matchup />} key={date} ready={current !== null}>{warning}{current?.games.map(game => {
       const label = status(game);
       const content = <>
         <span className="games-matchup-info">
@@ -185,6 +188,6 @@ export default function GamesBrowser() {
       if (!game.has_clips) return <div key={game.key} className="tb-game-card games-matchup" data-has-clips="false">{content}</div>;
       return <Link key={game.key} className="tb-game-card games-matchup" data-has-clips="true"
         to={'/games/' + date + '/' + game.away + '-at-' + game.home + '?week=' + iso(week)}>{content}</Link>;
-    })}{!current?.games.length && !current?.incomplete && <p>No games scheduled.</p>}</>}
+    })}{!current?.games.length && !current?.incomplete && <p>No games scheduled.</p>}</LoadingCrossfade>}
   </section>;
 }

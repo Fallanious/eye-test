@@ -1178,6 +1178,8 @@ main {
   padding: 0 0 10px 12px;
 }
 
+.pb-team-tab .team-name-placeholder { width: 26px; height: 10px; }
+
 .tb-games {
   min-width: 0;
 }
@@ -1525,6 +1527,12 @@ main {
 .games-day-heading { margin: 20px 0 4px; }
 .games-matchup { text-decoration: none; color: inherit; }
 .games-matchup-info { min-width: 0; }
+.games-placeholder .pb-team-mark { color: #b5afa6; }
+.games-placeholder .pb-skeleton-line { background: #c3bcb2; }
+.games-name-placeholder { width: clamp(90px, 14vw, 150px); }
+.games-time-placeholder { width: 52px; height: 10px; }
+.games-status-placeholder { width: 72px; height: 10px; }
+.games-placeholder .games-status::before { background: #c3bcb2; border-color: transparent; }
 .games-matchup .games-opponents, .games-team { display: flex; align-items: center; gap: 8px; }
 .games-opponents { flex-wrap: wrap; }
 .games-at { color: #706b65; font-size: 13px; font-weight: 500; }
@@ -1541,4 +1549,28 @@ main {
   .games-at { margin-left: 36px; }
   .app-header { gap: 14px; }
   .app-tabs { gap: 14px; }
+}
+
+.loading-crossfade { position: relative; }
+.loading-crossfade[data-revealing="true"] > .loading-crossfade-preview {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  animation: loading-crossfade-out 220ms ease-in-out both;
+}
+.loading-crossfade[data-revealing="true"] > .loading-crossfade-results {
+  position: relative;
+  animation: loading-crossfade-in 220ms ease-in-out both;
+}
+@keyframes loading-crossfade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes loading-crossfade-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .loading-crossfade[data-revealing="true"] > .loading-crossfade-preview { display: none; }
+  .loading-crossfade[data-revealing="true"] > .loading-crossfade-results { animation-duration: 1ms; }
+}
+
+/* A fetched page can contain more cards than its loading placeholders. */
+@media (prefers-reduced-motion: no-preference) {
+  .pb-player-results .loading-crossfade-results { animation: loading-crossfade-in 220ms ease-in-out; }
 }
