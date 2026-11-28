@@ -41,5 +41,5 @@ def connect():
     except Exception:
         if session is not None:
             session.close()
-        return None, (jsonify(error="Database connection unavailable."), 503)
+        return None, (jsonify(error="Unable to connect."), 503)
     return session, None
