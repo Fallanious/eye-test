@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
-import { fetchSchedule } from '../api';
+import { fetchClipDates, fetchSchedule } from '../api';
 import type { ScheduledGame } from '../types';
 import { teamColors, teamName } from '../teamTheme';
 import ClipStack from './ClipStack';
@@ -9,6 +9,8 @@ import { GameFilm } from './TeamBrowser';
 const DAY = 86400000;
 const WEEK = 7 * DAY;
 const BUFFER_WEEKS = 52;
+const MONTHS = Array.from({ length: 12 }, (_, month) =>
+  format(Date.UTC(2000, month, 1), { month: 'long' }));
 function iso(time: number) { return new Date(time).toISOString().slice(0, 10); }
 function parse(value: string | null | undefined) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -32,6 +34,20 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
   const first = center - BUFFER_WEEKS * WEEK;
   const weeks = useMemo(() => Array.from({ length: 2 * BUFFER_WEEKS + 1 }, (_, i) => first + i * WEEK), [first]);
   const visibleRef = useRef(visible);
+  const weekEnd = new Date(visible + 6 * DAY);
+  const month = weekEnd.getUTCMonth();
+  const year = weekEnd.getUTCFullYear();
+
+  const [availability, setAvailability] = useState<{ year: number; dates: Set<string> } | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchClipDates(year, controller.signal).then(({ dates }) => {
+      if (!controller.signal.aborted) {
+        setAvailability({ year, dates: new Set(dates) });
+      }
+    }).catch(() => { /* The schedule remains usable without date markers. */ });
+    return () => controller.abort();
+  }, [year]);
 
   function show(week: number) {
     if (week === visibleRef.current) return;
@@ -67,29 +83,43 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
   }
   return <>
     <div className="games-toolbar"><h1>Games</h1><div className="games-paging">
-      <input type="month" aria-label="Browse month and year" value={iso(visible + 6 * DAY).slice(0, 7)}
-        onChange={e => {
-          const start = parse(e.target.value + '-01');
-          if (start !== null) jump(monday(start));
-        }} />
-      <button aria-label="Previous week" onClick={() => jump(visible - 7 * DAY)}>‹</button>
-      <button aria-label="Next week" onClick={() => jump(visible + 7 * DAY)}>›</button>
+      <select aria-label="Month" value={month}
+        onChange={e => jump(monday(Date.UTC(year, Number(e.target.value), 1)))}>
+        {MONTHS.map((name, index) => <option key={name} value={index}>{name}</option>)}
+      </select>
+      <select aria-label="Year" value={year}
+        onChange={e => jump(monday(Date.UTC(Number(e.target.value), month, 1)))}>
+        {Array.from({ length: 21 }, (_, index) => year - 10 + index).map(option =>
+          <option key={option} value={option}>{option}</option>)}
+      </select>
     </div></div>
-    <div key={center} className="games-rail" ref={rail} aria-label="Weeks" onScroll={e => {
-      const node = e.currentTarget;
-      if (node === rail.current && node.clientWidth) {
-        const index = Math.max(0, Math.min(weeks.length - 1, Math.round(node.scrollLeft / node.clientWidth)));
-        show(weeks[index]);
-      }
-    }}>
-      {weeks.map(week => <div className="games-week" key={week} inert={week !== visible}>
-        {Math.abs(week - visible) <= 2 * 7 * DAY && Array.from({ length: 7 }, (_, i) => {
-          const day = week + i * DAY;
-          return <button key={day} aria-label={format(day, { dateStyle: 'full' })} aria-pressed={selected === day}
-            onClick={() => onSelect(day)}><small>{format(day, { weekday: 'short' })}</small><strong>{new Date(day).getUTCDate()}</strong></button>;
-        })}
-      </div>)}
+    <div className="games-week-nav">
+      <button aria-label="Previous week" onClick={() => jump(visible - 7 * DAY)}>‹</button>
+      <div key={center} className="games-rail" ref={rail} aria-label="Weeks" onScroll={e => {
+        const node = e.currentTarget;
+        if (node === rail.current && node.clientWidth) {
+          const index = Math.max(0, Math.min(weeks.length - 1, Math.round(node.scrollLeft / node.clientWidth)));
+          show(weeks[index]);
+        }
+      }}>
+        {weeks.map(week => <div className="games-week" key={week} inert={week !== visible}>
+          {Math.abs(week - visible) <= 2 * 7 * DAY && Array.from({ length: 7 }, (_, i) => {
+            const day = week + i * DAY;
+            const hasClips = availability?.year === new Date(week + 6 * DAY).getUTCFullYear()
+              ? availability.dates.has(iso(day)) : undefined;
+            const clipLabel = hasClips === undefined ? '' : hasClips ? ', clips available' : ', no clips';
+            return <button key={day} data-has-clips={hasClips} aria-label={format(day, { dateStyle: 'full' }) + clipLabel} aria-pressed={selected === day}
+              onClick={() => onSelect(day)}><small>{format(day, { weekday: 'short' })}</small><strong>{new Date(day).getUTCDate()}</strong>
+              <span className="games-clip-marker" data-available={hasClips} aria-hidden="true" />
+            </button>;
+          })}
+        </div>)}
+      </div>
+      <button aria-label="Next week" onClick={() => jump(visible + 7 * DAY)}>›</button>
     </div>
+    {availability?.year === year && <div className="games-strip-key">
+      <span className="games-clip-marker" data-available="true" aria-hidden="true" /> Clips available
+    </div>}
   </>;
 }
 
@@ -101,7 +131,7 @@ function MatchupTeam({ team }: { team: string }) {
 }
 
 function ClipStatus({ available }: { available: boolean }) {
-  return <span className={'games-status' + (available ? ' available' : '')}><span aria-hidden="true">{available ? '▶' : '−'}</span> {available ? 'Clips available' : 'No clips'}</span>;
+  return <span className={'games-status' + (available ? ' available' : '')}>{available ? 'Clips available' : 'No clips'}</span>;
 }
 function status(game: ScheduledGame) {
   if (!game.start || !/\d{1,2}:\d{2}\s*[AP]M/i.test(game.status)) return game.status;
@@ -143,13 +173,18 @@ export default function GamesBrowser() {
     <WeekStrip selected={day} initialWeek={week} onWeek={value => setParams({ date, week: iso(value) }, { replace: true })}
       onSelect={value => setParams({ date: iso(value), week: iso(monday(value)) }, { replace: true })} />
     <h2 className="games-day-heading">{format(day, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</h2>
-    {loading || <>{warning}{current?.games.map(game => <Link key={game.key} className="tb-game-card games-matchup"
-      to={'/games/' + date + '/' + game.away + '-at-' + game.home + '?week=' + iso(week)}>
-      <span className="games-matchup-info">
-        <strong className="games-opponents"><MatchupTeam team={game.away} /> <span className="games-at">at</span> <MatchupTeam team={game.home} /></strong>
-        {status(game) && <small>{status(game)}</small>}
-      </span>
-      <ClipStatus available={game.has_clips} />
-    </Link>)}{!current?.games.length && !current?.incomplete && <p>No games scheduled.</p>}</>}
+    {loading || <>{warning}{current?.games.map(game => {
+      const label = status(game);
+      const content = <>
+        <span className="games-matchup-info">
+          <strong className="games-opponents"><MatchupTeam team={game.away} /> <span className="games-at">at</span> <MatchupTeam team={game.home} /></strong>
+          {label && <small>{label}</small>}
+        </span>
+        <ClipStatus available={game.has_clips} />
+      </>;
+      if (!game.has_clips) return <div key={game.key} className="tb-game-card games-matchup" data-has-clips="false">{content}</div>;
+      return <Link key={game.key} className="tb-game-card games-matchup" data-has-clips="true"
+        to={'/games/' + date + '/' + game.away + '-at-' + game.home + '?week=' + iso(week)}>{content}</Link>;
+    })}{!current?.games.length && !current?.incomplete && <p>No games scheduled.</p>}</>}
   </section>;
 }

@@ -43,6 +43,10 @@ export function fetchTeamGames(teamId: number, cursor?: number | null, signal?: 
 export function fetchSchedule(date: string, signal: AbortSignal) {
   return fetchJSON<{ games: ScheduledGame[]; incomplete: boolean }>(`/api/games?date=${date}`, { signal });
 }
+export function fetchClipDates(year: number, signal: AbortSignal) {
+  return fetchJSON<{ dates: string[] }>(`/api/games/clip-dates?year=${year}`, { signal });
+}
+
 export type GameScope = 'team' | 'both';
 export type GamePlayer = { id: number; full_name: string };
 

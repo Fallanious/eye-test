@@ -1,5 +1,5 @@
 """Daily NBA schedule with availability from the local film catalog."""
-from datetime import date
+from datetime import date, timedelta
 from functools import lru_cache
 import json
 from time import time
@@ -38,6 +38,28 @@ def matchup(row):
     return tuple(ALIASES.get(row[side], row[side]) for side in ('away', 'home'))
 
 
+def available_film():
+    clips = select(Clip.id).where(Clip.game_id == Game.id).exists()
+    return (Game.s3_key != '') & clips
+
+
+@bp.get('/api/games/clip-dates')
+def clip_dates():
+    year = request.args.get('year', type=int)
+    if year is None or not 2 <= year <= 9999:
+        return jsonify(error='Choose a valid year.'), 400
+    # Include the start of the week that crosses into January.
+    start = date(year, 1, 1) - timedelta(days=6)
+    statement = (select(Game.game_date)
+                 .where(Game.game_date.between(start, date(year, 12, 31)), available_film())
+                 .distinct().order_by(Game.game_date))
+    session, error = connect()
+    if error:
+        return error
+    with session:
+        return jsonify(dates=[day.isoformat() for day in session.scalars(statement)])
+
+
 @bp.get('/api/games')
 def schedule():
     try:
@@ -54,16 +76,15 @@ def schedule():
     session, error = connect()
     if error:
         return error
-    exists = select(Clip.id).where(Clip.game_id == Game.id).exists()
-    statement = (select(Game, exists).where(Game.game_date == day)
+    statement = (select(Game, available_film()).where(Game.game_date == day)
                  .options(joinedload(Game.home_team), joinedload(Game.away_team))
                  .order_by(Game.id))
     with session:
         catalog = {}
-        for game, has_rows in session.execute(statement):
+        for game, has_clips in session.execute(statement):
             row = dict(id=game.id, home_id=game.home_team_id, home=game.home_team.abbr,
                        away=game.away_team.abbr, season=game.season,
-                       has_clips=bool(has_rows and game.s3_key))
+                       has_clips=bool(has_clips))
             catalog[matchup(row)] = row
 
     result = []

@@ -134,6 +134,8 @@ def test_schedule_merges_feed_and_catalog_by_matchup(client, postgres_url, monke
         conn.execute("UPDATE teams SET abbr='BRK' WHERE id=1")
         conn.execute("UPDATE teams SET abbr='GSW' WHERE id=2")
         conn.execute("UPDATE games SET s3_key='games/one.mkv' WHERE id=1")
+    assert client.get('/api/games/clip-dates?year=2026').json['dates'] == ['2026-01-01']
+    assert client.get('/api/games/clip-dates?year=2025').json['dates'] == []
     response = client.get('/api/games?date=2026-01-01').json
     assert not response['incomplete']
     one, two = response['games']
