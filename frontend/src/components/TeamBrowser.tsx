@@ -114,6 +114,14 @@ function TeamGames({ team }: { team: BrowserTeam }) {
   </section>;
 }
 
+export function GameMatchupTitle({ away, home }: { away: string; home: string }) {
+  return <h1 className="tb-matchup-title">
+    <span className="games-team"><ClipStack className="pb-team-mark" colors={teamColors(away)} />{teamName(away)}</span>
+    <span>at</span>
+    <span className="games-team"><ClipStack className="pb-team-mark" colors={teamColors(home)} />{teamName(home)}</span>
+  </h1>;
+}
+
 export function GameFilm({ team, game, scope = 'team', back }: { team: FilmTeam; game: FilmGame; scope?: GameScope; back?: string }) {
   const { params, update } = useBrowseParams();
   const clutch = params.get('clutch') === '1';
@@ -132,10 +140,10 @@ export function GameFilm({ team, game, scope = 'team', back }: { team: FilmTeam;
   return <section className="tb-film-page" style={teamStyle(team)} aria-label="Game film">
     <Link className="pb-back" to={back ?? `/teams/${team.id}`}>{back ? 'Games' : `All ${team.abbr} games`}</Link>
     <div className="tb-heading">
-      <div className="tb-team-title">
+      {scope === 'both' ? <GameMatchupTitle away={game.away} home={game.home} /> : <div className="tb-team-title">
         <ClipStack className="pb-team-mark" colors={teamColors(team.abbr)} />
-        <h1>{scope === 'both' ? `${teamName(game.away)} at ${teamName(game.home)}` : matchupLabel(game, team)}</h1>
-      </div>
+        <h1>{matchupLabel(game, team)}</h1>
+      </div>}
       <p>{dateLabel(game.date)} · {game.season}</p>
     </div>
     <div className="tb-scope"><span>{scope === 'both' ? 'Both teams' : teamName(team.abbr)} plays</span><span>{categories.length > 1 ? 'Matches any selected category' : 'Filter this game by category'}</span></div>

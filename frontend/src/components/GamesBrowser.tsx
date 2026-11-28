@@ -6,7 +6,7 @@ import { teamColors, teamName } from '../teamTheme';
 import ClipStack from './ClipStack';
 import LoadingCrossfade from './LoadingCrossfade';
 import GameLoadingRows from './GameLoadingRows';
-import { GameFilm } from './TeamBrowser';
+import { GameFilm, GameMatchupTitle } from './TeamBrowser';
 
 const DAY = 86400000;
 const WEEK = 7 * DAY;
@@ -40,16 +40,32 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
   const month = weekEnd.getUTCMonth();
   const year = weekEnd.getUTCFullYear();
 
-  const [availability, setAvailability] = useState<{ year: number; dates: Set<string> } | null>(null);
+  const [availability, setAvailability] = useState<Record<number, Set<string>>>({});
+  const yearDates = availability[year];
   useEffect(() => {
+    if (yearDates) return;
     const controller = new AbortController();
-    fetchClipDates(year, controller.signal).then(({ dates }) => {
-      if (!controller.signal.aborted) {
-        setAvailability({ year, dates: new Set(dates) });
+    let timer: number;
+    let retryDelay = 1000;
+    async function load() {
+      try {
+        const { dates } = await fetchClipDates(year, controller.signal);
+        if (!controller.signal.aborted) {
+          const confirmed = new Set(dates);
+          setAvailability(previous => ({ ...previous, [year]: confirmed }));
+        }
+      } catch {
+        if (controller.signal.aborted) return;
+        timer = window.setTimeout(load, retryDelay);
+        retryDelay = Math.min(retryDelay * 2, 60000);
       }
-    }).catch(() => { /* The schedule remains usable without date markers. */ });
-    return () => controller.abort();
-  }, [year]);
+    }
+    void load();
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [year, yearDates]);
 
   function show(week: number) {
     if (week === visibleRef.current) return;
@@ -107,8 +123,7 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
         {weeks.map(week => <div className="games-week" key={week} inert={week !== visible}>
           {Math.abs(week - visible) <= 2 * 7 * DAY && Array.from({ length: 7 }, (_, i) => {
             const day = week + i * DAY;
-            const hasClips = availability?.year === new Date(week + 6 * DAY).getUTCFullYear()
-              ? availability.dates.has(iso(day)) : undefined;
+            const hasClips = availability[new Date(week + 6 * DAY).getUTCFullYear()]?.has(iso(day));
             const clipLabel = hasClips === undefined ? '' : hasClips ? ', clips available' : ', no clips';
             return <button key={day} data-has-clips={hasClips} aria-label={format(day, { dateStyle: 'full' }) + clipLabel} aria-pressed={selected === day}
               onClick={() => onSelect(day)}><small>{format(day, { weekday: 'short' })}</small><strong>{new Date(day).getUTCDate()}</strong>
@@ -119,7 +134,7 @@ function WeekStrip({ selected, initialWeek, onSelect, onWeek }: {
       </div>
       <button aria-label="Next week" onClick={() => jump(visible + 7 * DAY)}>›</button>
     </div>
-    {availability?.year === year && <div className="games-strip-key">
+    {yearDates && <div className="games-strip-key">
       <span className="games-clip-marker" data-available="true" aria-hidden="true" /> Clips available
     </div>}
   </>;
@@ -169,7 +184,7 @@ export default function GamesBrowser() {
       team={{ id: game.home_id, abbr: game.home, name: teamName(game.home) }}
       game={{ ...game, id: game.id, date }} />;
     return <section><Link className="pb-back" to={back}>Games</Link>{loading || <>{warning}{game ? <>
-      <h1>{teamName(game.away)} at {teamName(game.home)}</h1><p>{format(day, { dateStyle: 'full' })}{status(game) && ' · ' + status(game)}</p>
+      <GameMatchupTitle away={game.away} home={game.home} /><p>{format(day, { dateStyle: 'full' })}{status(game) && ' · ' + status(game)}</p>
       <ClipStatus available={false} /></> : <p>Game unavailable for this date.</p>}</>}</section>;
   }
   return <section className="games-page">
